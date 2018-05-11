@@ -14,7 +14,8 @@ main = defaultMain tests
 
 tests :: [Test]
 tests = [ testGroup "padding"
-            [ testCase "proper padding for keccak256" keccakPaddingTest
+            [ testCase "proper padding for keccak256" keccakEmptyPaddingTest
+            , testCase "proper padding for keccak256" keccakAsciiPaddingTest
             ]
         , testGroup "keccak256"
             [ testCase "hashing empty bytestring" keccak256EmptyTest
@@ -22,9 +23,13 @@ tests = [ testGroup "padding"
         ]
 
 
-keccakPaddingTest :: Assertion
-keccakPaddingTest = assertEqual "Pads empty string properly" zeroPadding (paddingKeccak "")
+keccakEmptyPaddingTest :: Assertion
+keccakEmptyPaddingTest = assertEqual "Pads empty string properly" zeroPadding (paddingKeccak "")
     where zeroPadding = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128]
+
+keccakAsciiPaddingTest :: Assertion
+keccakAsciiPaddingTest = assertEqual "Pads ascii string properly" asciiPadding (paddingKeccak "testing")
+    where asciiPadding = [116, 101, 115, 116, 105, 110, 103, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 128]
 
 
 keccak256EmptyTest :: Assertion
