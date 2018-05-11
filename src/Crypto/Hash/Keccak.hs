@@ -3,7 +3,9 @@ module Crypto.Hash.Keccak
     , paddingKeccak
     ) where
 
-import qualified Data.ByteString     as BS
+import qualified Data.ByteString            as BS
+import qualified Data.ByteString.Conversion as BSC
+import qualified Data.ByteString.Lazy       as LBS
 import           Data.Word
 import           Data.Bits
 
@@ -21,18 +23,18 @@ roundConstants = [ 0x0000000000000001, 0x0000000000008082, 0x800000000000808A
                  , 0x000000000000800A, 0x800000008000000A, 0x8000000080008081
                  , 0x8000000000008080, 0x0000000080000001, 0x8000000080008008 ]
 
-paddingKeccak :: BS.ByteString -> BS.ByteString
+paddingKeccak :: BS.ByteString -> [Word8]
 paddingKeccak = multiratePadding 0x1
 
 
-paddingSha3 :: BS.ByteString -> BS.ByteString
+paddingSha3 :: BS.ByteString -> [Word8]
 paddingSha3 = multiratePadding 0x6
 
-multiratePadding :: Word -> BS.ByteString -> BS.ByteString
-multiratePadding pad input = BS.append input $ if padlen == 1
+multiratePadding :: Word -> BS.ByteString -> [Word8]
+multiratePadding pad input = BS.unpack . BS.append input $ if padlen == 1
     then BS.pack [0x81]
     else BS.pack $ 0x01 : replicate (padlen - 2) 0x00 ++ [0x80]
-    where bitRateBytes = 32
+    where bitRateBytes = 136
           -- TODO: modulo bitRateBytes?
           usedBytes = BS.length input
           padlen = bitRateBytes - mod usedBytes bitRateBytes
@@ -40,7 +42,7 @@ multiratePadding pad input = BS.append input $ if padlen == 1
 -- r (bitrate) = 1088
 -- c (capacity) = 512
 keccak256 :: BS.ByteString -> BS.ByteString
-keccak256 = squeeze 256 . foldl absorb emptyState . toBlocks 136 . BS.unpack . paddingKeccak
+keccak256 = squeeze 256 . foldl absorb emptyState . toBlocks 136 . paddingKeccak
 
 
 -- Sized inputs to this?
@@ -57,7 +59,12 @@ toBlocks sizeInBytes input = let (a, b) = splitAt sizeInBytes input
 
 
 absorb :: State -> [Word64] -> State
-absorb state input = state
+absorb state input = keccakF state'
+    where r = 1088
+          w = 64
+          (xs, ys) = unzip [ (x,y) | x <- [0..4] , y <- [0..4], x + 5 * y < div r w ]
+          -- lensing here might be appropriate
+          state' = fmap (\y -> (fmap (\x -> ((state !! x) !! y) .|. (input !! (x + 5 * y))) xs)) ys
 
 --   for each block Pi in P
 --     S[x,y] = S[x,y] xor Pi[x+5*y],          for (x,y) such that x+5*y < r/w
@@ -65,7 +72,7 @@ absorb state input = state
 
 
 squeeze :: Int -> State -> BS.ByteString
-squeeze len state = BS.empty
+squeeze len state = LBS.toStrict . BSC.toByteString . BSC.List . take 4 $ head state
 
 --  # Squeezing phase
 --  Z = empty string
@@ -73,4 +80,5 @@ squeeze len state = BS.empty
 --    Z = Z || S[x,y],                        for (x,y) such that x+5*y < r/w
 --    S = Keccak-f[r+c](S)
 
-keccakF = undefined
+keccakF :: State -> State
+keccakF = id
