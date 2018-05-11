@@ -11,6 +11,8 @@ type State = [[Word64]]
 emptyState :: State
 emptyState = replicate 5 (replicate 5 0)
 
+-- truncated when w is smaller than 64
+roundConstants :: [Word64]
 roundConstants = [ 0x0000000000000001, 0x0000000000008082, 0x800000000000808A
                  , 0x8000000080008000, 0x000000000000808B, 0x0000000080000001
                  , 0x8000000080008081, 0x8000000000008009, 0x000000000000008A
@@ -19,6 +21,15 @@ roundConstants = [ 0x0000000000000001, 0x0000000000008082, 0x800000000000808A
                  , 0x8000000000008003, 0x8000000000008002, 0x8000000000000080
                  , 0x000000000000800A, 0x800000008000000A, 0x8000000080008081
                  , 0x8000000000008080, 0x0000000080000001, 0x8000000080008008 ]
+
+
+rotationConstants :: [[Int]]
+rotationConstants = [ [  0,  1, 62, 28, 27 ]
+                    , [ 36, 44,  6, 55, 20 ]
+                    , [  3, 10, 43, 25, 39 ]
+                    , [ 41, 45, 15, 21,  8 ]
+                    , [ 18,  2, 61, 56, 14 ]
+                    ]
 
 paddingKeccak :: BS.ByteString -> [Word8]
 paddingKeccak = multiratePadding 0x1
@@ -59,7 +70,7 @@ absorb :: State -> [Word64] -> State
 absorb state input = keccakF state'
     where r = 1088
           w = 64
-          state' = [ [ if x + 5 * y < div r w then ((state !! x) !! y) .|. input !! (x + 5 * y) else (state !! x) !! y | x <- [0..4]  ] |  y <- [0..4] ]
+          state' = [ [ if x + 5 * y < div r w then ((state !! x) !! y) `xor` input !! (x + 5 * y) else (state !! x) !! y | x <- [0..4]  ] |  y <- [0..4] ]
 
 --   for each block Pi in P
 --     S[x,y] = S[x,y] xor Pi[x+5*y],          for (x,y) such that x+5*y < r/w
@@ -76,4 +87,33 @@ squeeze len state = LBS.toStrict . BSC.toByteString . BSC.List . take 4 $ head s
 --    S = Keccak-f[r+c](S)
 
 keccakF :: State -> State
-keccakF = id
+keccakF state = foldl (\s r -> iota r . chi . pirho $ theta s) state [1 .. rounds - 1]
+    where rounds = 24
+
+--   # θ step
+--   C[x] = A[x,0] xor A[x,1] xor A[x,2] xor A[x,3] xor A[x,4],   for x in 0…4
+--   D[x] = C[x-1] xor rot(C[x+1],1),                             for x in 0…4
+--   A[x,y] = A[x,y] xor D[x],                           for (x,y) in (0…4,0…4)
+theta :: State -> State
+theta = id
+
+
+--   # ρ and π steps
+--   B[y,2*x+3*y] = rot(A[x,y], r[x,y]),                 for (x,y) in (0…4,0…4)
+pirho :: State -> State
+pirho = id
+
+
+--   # χ step
+--   A[x,y] = B[x,y] xor ((not B[x+1,y]) and B[x+2,y]),  for (x,y) in (0…4,0…4)
+chi :: State -> State
+chi = id
+
+
+--   # ι step
+--   A[0,0] = A[0,0] xor RC
+--   TODO Data.List.Lens
+iota :: Int -> State -> State
+iota round state = (newZero : newRow) : tail state
+    where ([oldZero], newRow) = splitAt 1 $ head state
+          newZero = xor (roundConstants !! round) oldZero
