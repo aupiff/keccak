@@ -1,7 +1,4 @@
-module Crypto.Hash.Keccak
-    ( keccak256
-    , paddingKeccak
-    ) where
+module Crypto.Hash.Keccak where
 
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Conversion as BSC
@@ -62,9 +59,7 @@ absorb :: State -> [Word64] -> State
 absorb state input = keccakF state'
     where r = 1088
           w = 64
-          (xs, ys) = unzip [ (x,y) | x <- [0..4] , y <- [0..4], x + 5 * y < div r w ]
-          -- lensing here might be appropriate
-          state' = fmap (\y -> (fmap (\x -> ((state !! x) !! y) .|. (input !! (x + 5 * y))) xs)) ys
+          state' = [ [ if x + 5 * y < div r w then ((state !! x) !! y) .|. input !! (x + 5 * y) else (state !! x) !! y | x <- [0..4]  ] |  y <- [0..4] ]
 
 --   for each block Pi in P
 --     S[x,y] = S[x,y] xor Pi[x+5*y],          for (x,y) such that x+5*y < r/w
