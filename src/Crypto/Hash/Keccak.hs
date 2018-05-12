@@ -63,7 +63,7 @@ toBlocks sizeInBytes input = let (a, b) = splitAt sizeInBytes input
           toLanes octets = let (a, b) = splitAt 8 octets
                            in toLane a : toLanes b
           toLane :: [Word8] -> Word64
-          toLane octets = foldl1 xor $ zipWith (\offset octet -> shift (fromIntegral octet) (offset * 8))  [1..8] octets
+          toLane octets = foldl1 xor $ zipWith (\offset octet -> shiftL (fromIntegral octet) (offset * 8))  [1..8] octets
 
 
 --   for each block Pi in P
@@ -73,7 +73,7 @@ absorb :: State -> [Word64] -> State
 absorb state input = keccakF state'
     where r = 1088
           w = 64
-          state' = [ [ if x + 5 * y < div r w then ((state !! x) !! y) `xor` input !! (x + 5 * y) else (state !! x) !! y | x <- [0..4]  ] |  y <- [0..4] ]
+          state' = [ [ if x + 5 * y < div r w then ((state !! x) !! y) `xor` (input !! (x + 5 * y)) else (state !! x) !! y | x <- [0..4]  ] | y <- [0..4] ]
 
 --  # Squeezing phase
 --  Z = empty string
@@ -84,8 +84,9 @@ squeeze :: Int -> State -> BS.ByteString
 squeeze len state = BS.pack . filter (/= comma) . BS.unpack . BSC.toByteString' . BSC.List . fmap BSC.Hex . take 4 $ head state
     where comma = 44
 
+
 keccakF :: State -> State
-keccakF state = foldl (\s r -> iota r . chi . pirho $ theta s) state [1 .. rounds - 1]
+keccakF state = foldl (\s r -> iota r . chi . pirho $ theta s) state [0 .. (rounds - 1)]
     where rounds = 24
 
 --   # θ step
@@ -93,8 +94,8 @@ keccakF state = foldl (\s r -> iota r . chi . pirho $ theta s) state [1 .. round
 --   D[x] = C[x-1] xor rot(C[x+1],1),                             for x in 0…4
 --   A[x,y] = A[x,y] xor D[x],                           for (x,y) in (0…4,0…4)
 theta :: State -> State
-theta state = [ [ (state !! x) !! y `xor` d !! x | x <- [0..4] ] | y <- [0..4] ]
-    where c = [ foldl1 xor [ (state !! x) !! y | y <- [0..4] ] | x <- [0..4] ]
+theta state = [ [ ((state !! x) !! y) `xor` (d !! x) | x <- [0..4] ] | y <- [0..4] ]
+    where c = [ foldl1 xor [ (state !! x) !! y | x <- [0..4] ] | y <- [0..4] ]
           d = [ c !! ((x - 1) `mod` 5) `xor` rotate (c !! ((x + 1) `mod` 5)) 1 | x <- [0..4] ]
 
 
