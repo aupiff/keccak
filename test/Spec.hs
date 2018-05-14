@@ -13,7 +13,7 @@ main = defaultMain tests
 
 
 tests :: [Test]
-tests = [ testGroup "padding"
+tests = [ testGroup "padding & blocking"
             [ testCase "proper padding of zero input for keccak256" keccakEmptyPaddingTest
             , testCase "proper padding of ascii input for keccak256" keccakAsciiPaddingTest
             ]
@@ -43,7 +43,7 @@ keccakEmptyAbsorbtionTest = assertEqual "Absorbs empty input properly" emptyStat
 
 
 keccakAsciiAbsorbtionTest :: Assertion
-keccakAsciiAbsorbtionTest = assertEqual "Absorbs empty input properly" asciiState (foldl absorb emptyState . toBlocks 136 $ paddingKeccak "")
+keccakAsciiAbsorbtionTest = assertEqual "Absorbs ascii input properly" asciiState (foldl absorb emptyState . toBlocks 136 $ paddingKeccak "")
     where asciiState = [ [ 0x4fac49f1c7f4165f, 0x0384f38ccfd91095, 0x9101dcbcb348d38a, 0x021b9ddf12de955f, 0x3019b1ed0991e703 ] , [ 0x4cd3f754160cb4f9, 0x698e70cb14313112, 0xf284008bb4ffc3fc, 0x383e8a79fc8e7ca7, 0xab828c19eb7bb25c ] , [ 0x99d38bf6eef7219b, 0x20d69675d4c03c7f, 0xa1f31e8637f0228b, 0x69928cd96e31cbf0, 0xf968b5224282a9f1 ] , [ 0xb05bb9345dd6926c, 0xfc535e70100c629c, 0x85403692ef825d27, 0xd940ea33a105e5d8, 0x669f92a2ae8735fa ] , [ 0x73735b67252d6dd8, 0x6abf628a564c7c7a, 0xb5fbcb89b2c8f5a4, 0xdee733dae7646bc5, 0x4f9778ed8a3b72a2 ] ]
 
 
