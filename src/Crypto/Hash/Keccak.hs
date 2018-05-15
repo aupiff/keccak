@@ -23,15 +23,14 @@ roundConstants = [ 0x0000000000000001, 0x0000000000008082, 0x800000000000808A
                  , 0x000000000000800A, 0x800000008000000A, 0x8000000080008081
                  , 0x8000000000008080, 0x0000000080000001, 0x8000000080008008 ]
 
--- these might be in the wrong order; check with table provided on keccak
--- website
 rotationConstants :: [[Int]]
-rotationConstants = [ [  0,  1, 62, 28, 27 ]
-                    , [ 36, 44,  6, 55, 20 ]
-                    , [  3, 10, 43, 25, 39 ]
-                    , [ 41, 45, 15, 21,  8 ]
-                    , [ 18,  2, 61, 56, 14 ]
+rotationConstants = [ [  0, 36,  3, 41, 18 ]
+                    , [  1, 44, 10, 45,  2 ]
+                    , [ 62,  6, 43, 15, 61 ]
+                    , [ 28, 55, 25, 21, 56 ]
+                    , [ 27, 20, 39,  8, 14 ]
                     ]
+
 
 paddingKeccak :: BS.ByteString -> [Word8]
 paddingKeccak = multiratePadding 0x1
@@ -114,8 +113,7 @@ theta state = [ [ ((state !! x) !! y) `xor` (d !! x)
 --   B[y,2*x+3*y] = rot(A[x,y], r[x,y]),                 for (x,y) in (0…4,0…4)
 rhoPi :: State -> [[Word64]]
 rhoPi state = fmap (fmap rotFunc) [ [ ((x + 3 * y) `mod` 5, x) | y <- [0..4] ] | x <- [0..4] ]
-    -- why is the x / y swapped in rotation constants?
-    where rotFunc (x, y) = rotateL ((state !! x) !! y) ((rotationConstants !! y) !! x)
+    where rotFunc (x, y) = rotateL ((state !! x) !! y) ((rotationConstants !! x) !! y)
 
 
 --   # χ step
