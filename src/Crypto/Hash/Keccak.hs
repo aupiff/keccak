@@ -23,7 +23,8 @@ roundConstants = [ 0x0000000000000001, 0x0000000000008082, 0x800000000000808A
                  , 0x000000000000800A, 0x800000008000000A, 0x8000000080008081
                  , 0x8000000000008080, 0x0000000080000001, 0x8000000080008008 ]
 
-
+-- these might be in the wrong order; check with table provided on keccak
+-- website
 rotationConstants :: [[Int]]
 rotationConstants = [ [  0,  1, 62, 28, 27 ]
                     , [ 36, 44,  6, 55, 20 ]
@@ -129,6 +130,4 @@ chi b = [ [ ((b !! x) !! y) `xor` (complement ((b !! ((x + 1) `mod` 5)) !! y) .&
 --   A[0,0] = A[0,0] xor RC
 --   TODO Data.List.Lens
 iota :: Int -> State -> State
-iota round state = (newZero : newRow) : tail state
-    where ([oldZero], newRow) = splitAt 1 $ head state
-          newZero = xor (roundConstants !! round) oldZero
+iota round ((first : rest) : restRows) = (xor (roundConstants !! round) first : rest) : restRows
