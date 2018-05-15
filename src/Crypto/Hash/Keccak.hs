@@ -1,10 +1,11 @@
 module Crypto.Hash.Keccak where
 
+import           Data.Bits
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Conversion as BSC
 import qualified Data.ByteString.Lazy       as LBS
 import           Data.Word
-import           Data.Bits
+
 
 type State = [[Word64]]
 
@@ -38,6 +39,7 @@ paddingKeccak = multiratePadding 0x1
 paddingSha3 :: BS.ByteString -> [Word8]
 paddingSha3 = multiratePadding 0x6
 
+
 multiratePadding :: Word -> BS.ByteString -> [Word8]
 multiratePadding pad input = BS.unpack . BS.append input $ if padlen == 1
     then BS.pack [0x81]
@@ -69,11 +71,15 @@ toBlocks sizeInBytes input = let (a, b) = splitAt sizeInBytes input
 --   for each block Pi in P
 --     S[x,y] = S[x,y] xor Pi[x+5*y],          for (x,y) such that x+5*y < r/w
 --     S = Keccak-f[r+c](S)
+--     TODO support `input` larger than single block
 absorb :: State -> [Word64] -> State
 absorb state input = keccakF state'
     where r = 1088
           w = 64
-          state' = [ [ if x + 5 * y < div r w then ((state !! x) !! y) `xor` (input !! (x + 5 * y)) else (state !! x) !! y | y <- [0..4]  ] | x <- [0..4] ]
+          state' = [ [ if x + 5 * y < div r w then ((state !! x) !! y) `xor` (input !! (x + 5 * y)) else (state !! x) !! y
+                        | y <- [0..4]  ]
+                            | x <- [0..4] ]
+
 
 --  # Squeezing phase
 --  Z = empty string
@@ -86,7 +92,7 @@ squeeze len state = BS.pack . filter (/= comma) . BS.unpack . BSC.toByteString' 
 
 
 keccakF :: State -> State
-keccakF state = foldl (\s r -> iota r . chi . pirho $ theta s) state [0 .. (rounds - 1)]
+keccakF state = foldl (\s r -> iota r . chi . rhoPi $ theta s) state [0 .. (rounds - 1)]
     where rounds = 24
 
 --   # θ step
@@ -94,25 +100,29 @@ keccakF state = foldl (\s r -> iota r . chi . pirho $ theta s) state [0 .. (roun
 --   D[x] = C[x-1] xor rot(C[x+1],1),                             for x in 0…4
 --   A[x,y] = A[x,y] xor D[x],                           for (x,y) in (0…4,0…4)
 theta :: State -> State
-theta state = [ [ ((state !! x) !! y) `xor` (d !! x) | x <- [0..4] ] | y <- [0..4] ]
-    where c = [ foldl1 xor [ (state !! x) !! y | y <- [0..4] ] | x <- [0..4] ]
-          d = [ c !! ((x - 1) `mod` 5) `xor` rotate (c !! ((x + 1) `mod` 5)) 1 | x <- [0..4] ]
+theta state = [ [ ((state !! x) !! y) `xor` (d !! x)
+                    | y <- [0..4] ]
+                        | x <- [0..4] ]
+    where c = [ foldl1 xor [ (state !! x) !! y
+                    | y <- [0..4] ]
+                        | x <- [0..4] ]
+          d = [ c !! ((x - 1) `mod` 5) `xor` rotateL (c !! ((x + 1) `mod` 5)) 1 | x <- [0..4] ]
 
 
 --   # ρ and π steps
 --   B[y,2*x+3*y] = rot(A[x,y], r[x,y]),                 for (x,y) in (0…4,0…4)
-pirho :: State -> [[Word64]]
-pirho state = [ [ rotate ((state !! (div (x - 2 * y) 3 `mod` 5)) !! x) ((rotationConstants !! (div (x - 2 * y) 3 `mod` 5)) !! x)
-                        | x <- [0..4] ]
-                           | y <- [0..4] ]
+rhoPi :: State -> [[Word64]]
+rhoPi state = fmap (fmap rotFunc) [ [ ((x + 3 * y) `mod` 5, x) | y <- [0..4] ] | x <- [0..4] ]
+    -- why is the x / y swapped in rotation constants?
+    where rotFunc (x, y) = rotateL ((state !! x) !! y) ((rotationConstants !! y) !! x)
 
 
 --   # χ step
 --   A[x,y] = B[x,y] xor ((not B[x+1,y]) and B[x+2,y]),  for (x,y) in (0…4,0…4)
 chi :: [[Word64]] -> State
 chi b = [ [ ((b !! x) !! y) `xor` (complement ((b !! ((x + 1) `mod` 5)) !! y) .&. ((b !! ((x + 2) `mod` 5)) !! y))
-                    | x <- [0..4] ]
-                        | y <- [0..4] ]
+                    | y <- [0..4] ]
+                        | x <- [0..4] ]
 
 
 --   # ι step
