@@ -2,10 +2,12 @@ module Crypto.Hash.Keccak where
 
 import           Data.Bits
 import qualified Data.ByteString            as BS
-import qualified Data.ByteString.Conversion as BSC
+import qualified Data.ByteString.Base16     as BS16
 import qualified Data.ByteString.Lazy       as LBS
 import           Data.Word
+import           Data.List (transpose)
 
+import Debug.Trace
 
 type State = [[Word64]]
 
@@ -52,8 +54,7 @@ multiratePadding pad input = BS.unpack . BS.append input $ if padlen == 1
 -- r (bitrate) = 1088
 -- c (capacity) = 512
 keccak256 :: BS.ByteString -> BS.ByteString
-keccak256 = squeeze 256 . foldl absorb emptyState . toBlocks 136 . paddingKeccak
-
+keccak256 = BS16.encode . squeeze 32 . absorb . toBlocks 136 . paddingKeccak
 
 -- Sized inputs to this?
 toBlocks :: Int -> [Word8] -> [[Word64]]
@@ -72,11 +73,16 @@ toBlocks sizeInBytes input = let (a, b) = splitAt sizeInBytes input
 --     S[x,y] = S[x,y] xor Pi[x+5*y],          for (x,y) such that x+5*y < r/w
 --     S = Keccak-f[r+c](S)
 --     TODO support `input` larger than single block
-absorb :: State -> [Word64] -> State
-absorb state input = keccakF state'
+absorb :: [[Word64]] -> State
+absorb = foldl absorbBlock emptyState
+
+absorbBlock :: State -> [Word64] -> State
+absorbBlock state input = keccakF state'
     where r = 1088
           w = 64
-          state' = [ [ if x + 5 * y < div r w then ((state !! x) !! y) `xor` (input !! (x + 5 * y)) else (state !! x) !! y
+          state' = [ [ if x + 5 * y < div r w
+                            then ((state !! x) !! y) `xor` (input !! (x + 5 * y))
+                            else (state !! x) !! y
                         | y <- [0..4]  ]
                             | x <- [0..4] ]
 
@@ -86,9 +92,16 @@ absorb state input = keccakF state'
 --  while output is requested
 --    Z = Z || S[x,y],                        for (x,y) such that x+5*y < r/w
 --    S = Keccak-f[r+c](S)
+--    TODO handle longer outputs
 squeeze :: Int -> State -> BS.ByteString
-squeeze len state = BS.pack . filter (/= comma) . BS.unpack . BSC.toByteString' . BSC.List . fmap BSC.Hex . take 4 $ head state
+squeeze len = BS.pack . take len . stateToBytes
     where comma = 44
+
+
+stateToBytes :: State -> [Word8]
+stateToBytes state = concat [ laneToBytes (state !! x !!  y) | y <- [0..4] , x <- [0..4] ]
+    where laneToBytes :: Word64 -> [Word8]
+          laneToBytes word = fmap (\x -> fromIntegral (shiftR word (x * 8) .&. 0xFF)) [0..7]
 
 
 keccakF :: State -> State
