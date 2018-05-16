@@ -1,15 +1,15 @@
 name:                keccak
-version:             0.1.0.0
+version:             0.1.0
 synopsis:            haskell keccak functions
 description:         pure haskell implementation of keccak hash functions for
                      use with ghc or ghcjs
-homepage:            https://github.com/hasketh/keccak#readme
+homepage:            https://github.com/aupiff/keccak#readme
 license:             MIT
 license-file:        LICENSE
 author:              Roy Blankman
 maintainer:          riblankman@gmail.com
-copyright:           2017 Roy Blankman
-category:            Web
+copyright:           2018 Roy Blankman
+category:            Crypto
 build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
