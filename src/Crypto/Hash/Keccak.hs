@@ -2,7 +2,6 @@ module Crypto.Hash.Keccak where
 
 import           Data.Bits
 import qualified Data.ByteString            as BS
-import qualified Data.ByteString.Base16     as BS16
 import qualified Data.ByteString.Lazy       as LBS
 import           Data.Word
 
@@ -51,7 +50,7 @@ multiratePadding pad input = BS.unpack . BS.append input $ if padlen == 1
 -- r (bitrate) = 1088
 -- c (capacity) = 512
 keccak256 :: BS.ByteString -> BS.ByteString
-keccak256 = BS16.encode . squeeze 32 . absorb . toBlocks 136 . paddingKeccak
+keccak256 = squeeze 32 . absorb . toBlocks 136 . paddingKeccak
 
 -- Sized inputs to this?
 toBlocks :: Int -> [Word8] -> [[Word64]]
