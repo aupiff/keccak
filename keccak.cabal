@@ -39,4 +39,4 @@ test-suite keccak-test
 
 source-repository head
   type:     git
-  location: https://github.com/hasketh/keccak
+  location: https://github.com/aupiff/keccak
