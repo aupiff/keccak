@@ -5,9 +5,6 @@ import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Base16     as BS16
 import qualified Data.ByteString.Lazy       as LBS
 import           Data.Word
-import           Data.List (transpose)
-
-import Debug.Trace
 
 type State = [[Word64]]
 
@@ -100,8 +97,10 @@ squeeze len = BS.pack . take len . stateToBytes
 
 stateToBytes :: State -> [Word8]
 stateToBytes state = concat [ laneToBytes (state !! x !!  y) | y <- [0..4] , x <- [0..4] ]
-    where laneToBytes :: Word64 -> [Word8]
-          laneToBytes word = fmap (\x -> fromIntegral (shiftR word (x * 8) .&. 0xFF)) [0..7]
+
+
+laneToBytes :: Word64 -> [Word8]
+laneToBytes word = fmap (\x -> fromIntegral (shiftR word (x * 8) .&. 0xFF)) [0..7]
 
 
 keccakF :: State -> State
