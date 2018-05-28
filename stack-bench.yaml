@@ -1,0 +1,13 @@
+resolver: nightly-2017-11-18
+# We use keccak in the snapshot to
+# - avoid recompilation of criterion
+# - compare against it
+# - '.'
+#
+# Also we use separate working directory to avoid "unregistering keccak"
+# caused recompilations
+work-dir: .stack-work-bench
+#packages:
+#- benchmarks
+extra-deps:
+- keccak-0.1.0
