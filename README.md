@@ -30,8 +30,9 @@ TODO
 
 ## References
 
-[Official Keccak Refeerence](https://keccak.team/files/Keccak-reference-3.0.pdf)
+[Official Keccak Reference](https://keccak.team/files/Keccak-reference-3.0.pdf)
 
 [Specification summary](https://keccak.team/keccak_specs_summary.html)
 
-[SHA-3 and The Hash Function Keccak (textbook chapter)](https://keccak.team/files/Keccak-reference-3.0.pdf)
+[SHA-3 and The Hash Function Keccak (textbook
+chapter)](https://pdfs.semanticscholar.org/8450/06456ff132a406444fa85aa7b5636266a8d0.pdf)
