@@ -1,10 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import           Crypto.Hash        (Digest, Keccak_256, hash)
 import           Crypto.Hash.Keccak
-import           Data.ByteArray                       (convert)
 import qualified Data.ByteString                      as BS
 import qualified Data.ByteString.Base16               as BS16
+import           Cryptonite
 import           Test.Framework                       (defaultMain, Test, testGroup)
 import           Test.Framework.Providers.HUnit       (testCase)
 import           Test.Framework.Providers.QuickCheck2 (testProperty)
@@ -65,9 +64,3 @@ keccak256AsciiTest = assertEqual "Hashes ascii string" ("5f16f4c7f149ac4f9510d9c
 cryptoniteKeccak256_eq xs =
         keccak256 xs == cryptoniteKeccak' xs
   where types = xs :: BS.ByteString
-
-cryptoniteKeccak' :: BS.ByteString -> BS.ByteString
-cryptoniteKeccak' = convert . cryptoniteKeccak
-
-cryptoniteKeccak :: BS.ByteString -> Digest Keccak_256
-cryptoniteKeccak = hash
