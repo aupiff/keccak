@@ -28,9 +28,12 @@ test-suite keccak-test
   build-depends:       base
                      , bytestring
                      , base16-bytestring
+                     , cryptonite
                      , keccak
                      , HUnit
+                     , memory
                      , QuickCheck
+                     , quickcheck-instances
                      , test-framework
                      , test-framework-hunit
                      , test-framework-quickcheck2
@@ -47,6 +50,7 @@ benchmark self
                       , cryptonite
                       , gauge
                       , keccak
+                      , memory
 
 source-repository head
   type:     git
