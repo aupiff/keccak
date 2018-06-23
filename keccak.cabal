@@ -25,6 +25,7 @@ test-suite keccak-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
+  other-modules:       Cryptonite
   build-depends:       base
                      , bytestring
                      , base16-bytestring
@@ -44,6 +45,7 @@ benchmark self
   type:                 exitcode-stdio-1.0
   hs-source-dirs:       benchs
                       , test
+  other-modules:        Cryptonite
   default-language:     Haskell2010
   main-is:              Main.hs
   build-depends:        base
