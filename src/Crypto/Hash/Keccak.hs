@@ -1,8 +1,8 @@
 module Crypto.Hash.Keccak where
 
 import           Data.Bits
-import qualified Data.ByteString            as BS
-import qualified Data.ByteString.Lazy       as LBS
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as LBS
 import           Data.Word
 
 type State = [[Word64]]
@@ -19,7 +19,8 @@ roundConstants = [ 0x0000000000000001, 0x0000000000008082, 0x800000000000808A
                  , 0x000000008000808B, 0x800000000000008B, 0x8000000000008089
                  , 0x8000000000008003, 0x8000000000008002, 0x8000000000000080
                  , 0x000000000000800A, 0x800000008000000A, 0x8000000080008081
-                 , 0x8000000000008080, 0x0000000080000001, 0x8000000080008008 ]
+                 , 0x8000000000008080, 0x0000000080000001, 0x8000000080008008
+                 ]
 
 rotationConstants :: [[Int]]
 rotationConstants = [ [  0, 36,  3, 41, 18 ]
