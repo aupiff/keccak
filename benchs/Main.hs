@@ -3,7 +3,7 @@
 module Main where
 
 import           Crypto.Hash.Keccak
-import           Cryptonite
+import           Test.Cryptonite
 import qualified Data.ByteString    as BS
 
 import Gauge

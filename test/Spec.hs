@@ -3,7 +3,7 @@
 import           Crypto.Hash.Keccak
 import qualified Data.ByteString                      as BS
 import qualified Data.ByteString.Base16               as BS16
-import           Cryptonite
+import           Test.Cryptonite
 import           Test.Framework                       (defaultMain, Test, testGroup)
 import           Test.Framework.Providers.HUnit       (testCase)
 import           Test.Framework.Providers.QuickCheck2 (testProperty)
@@ -30,6 +30,9 @@ tests = [ testGroup "padding & blocking"
             , testCase "hashing string 'testing'" keccak256AsciiTest
             , testProperty "extensionally equivalent to cryptonite-keccak"
                            (withMaxSuccess 3000 cryptoniteKeccak256_eq)
+            ]
+        , testGroup "KAT"
+            [ testCase "ShortMsgKAT_256.txt" shortMsgKAT_256
             ]
         ]
 
@@ -60,7 +63,9 @@ keccak256EmptyTest = assertEqual "Hashes empty string" ("c5d2460186f7233c927e7db
 keccak256AsciiTest :: Assertion
 keccak256AsciiTest = assertEqual "Hashes ascii string" ("5f16f4c7f149ac4f9510d9cf8cf384038ad348b3bcdc01915f95de12df9d1b02" :: BS.ByteString) (BS16.encode $ keccak256 "testing")
 
-
+cryptoniteKeccak256_eq :: BS.ByteString -> Bool
 cryptoniteKeccak256_eq xs =
         keccak256 xs == cryptoniteKeccak' xs
-  where types = xs :: BS.ByteString
+
+shortMsgKAT_256 :: Assertion
+shortMsgKAT_256 = return ()
