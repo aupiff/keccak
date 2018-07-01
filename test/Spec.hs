@@ -3,13 +3,17 @@
 import           Crypto.Hash.Keccak
 import qualified Data.ByteString                      as BS
 import qualified Data.ByteString.Base16               as BS16
+import           Data.Either
 import           Test.Cryptonite
 import           Test.Framework                       (defaultMain, Test, testGroup)
 import           Test.Framework.Providers.HUnit       (testCase)
 import           Test.Framework.Providers.QuickCheck2 (testProperty)
-import           Test.HUnit                           (Assertion, assertEqual)
+import           Test.HUnit                           (Assertion, assertEqual, assertFailure)
+import           Test.Parse.KAT
 import           Test.QuickCheck                      ((==>), Property, withMaxSuccess)
 import           Test.QuickCheck.Instances.ByteString
+
+import           Debug.Trace
 
 main :: IO ()
 main = defaultMain tests
@@ -68,4 +72,8 @@ cryptoniteKeccak256_eq xs =
         keccak256 xs == cryptoniteKeccak' xs
 
 shortMsgKAT_256 :: Assertion
-shortMsgKAT_256 = return ()
+shortMsgKAT_256 = do katsE <- parseFromFile parseTestFile testFile
+                     kats <- either (assertFailure . show) pure katsE
+                     mapM_ runKat kats
+    where runKat a@(KAT l m d) = traceShow a $ assertEqual "Bad digest" (keccak256 $ BS.take l m) d
+          testFile = "test/KAT_MCT/ShortMsgKAT_256.txt"
