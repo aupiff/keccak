@@ -1,4 +1,4 @@
-module Cryptonite where
+module Test.Cryptonite where
 
 import           Crypto.Hash        (Digest, Keccak_256, hash)
 import           Data.ByteArray     (convert)
