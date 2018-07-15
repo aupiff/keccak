@@ -50,25 +50,37 @@ multiratePadding padByte input = BS.unpack . BS.append input $ if padlen == 1
 
 -- r (bitrate) = 576
 -- c (capacity) = 1024
+keccak512Rate :: Int
+keccak512Rate = 576
+
 keccak512 :: BS.ByteString -> BS.ByteString
-keccak512 = squeeze 32 . absorb . toBlocks 136 . paddingKeccak
+keccak512 = squeeze 64 . absorb keccak512Rate . toBlocks 136 . paddingKeccak
 
 
 -- r (bitrate) = 832
 -- c (capacity) = 768
+keccak384Rate :: Int
+keccak384Rate = 832
+
 keccak384 :: BS.ByteString -> BS.ByteString
-keccak384 = squeeze 32 . absorb . toBlocks 136 . paddingKeccak
+keccak384 = squeeze 48 . absorb keccak384Rate . toBlocks 136 . paddingKeccak
 
 
 -- r (bitrate) = 1088
 -- c (capacity) = 512
+keccak256Rate :: Int
+keccak256Rate = 1088
+
 keccak256 :: BS.ByteString -> BS.ByteString
-keccak256 = squeeze 32 . absorb . toBlocks 136 . paddingKeccak
+keccak256 = squeeze 32 . absorb keccak256Rate . toBlocks 136 . paddingKeccak
 
 -- r (bitrate) = 1152
 -- c (capacity) = 448
+keccak224Rate :: Int
+keccak224Rate = 1152
+
 keccak224 :: BS.ByteString -> BS.ByteString
-keccak224 = squeeze 32 . absorb . toBlocks 136 . paddingKeccak
+keccak224 = squeeze 28 . absorb 1152 . toBlocks 136 . paddingKeccak
 
 
 -- Sized inputs to this?
@@ -87,18 +99,16 @@ toBlocks sizeInBytes input = let (a, b) = splitAt sizeInBytes input
 --   for each block Pi in P
 --     S[x,y] = S[x,y] xor Pi[x+5*y],          for (x,y) such that x+5*y < r/w
 --     S = Keccak-f[r+c](S)
---     TODO support `input` larger than single block
-absorb :: [[Word64]] -> State
-absorb = foldl absorbBlock emptyState
+absorb :: Int -> [[Word64]] -> State
+absorb rate = foldl (absorbBlock rate) emptyState
 
-absorbBlock :: State -> [Word64] -> State
-absorbBlock state input = keccakF state'
-    where r = 1088
-          w = 64
-          state' = [ [ if x + 5 * y < div r w
+absorbBlock :: Int -> State -> [Word64] -> State
+absorbBlock rate state input = keccakF state'
+    where w = 64 -- lane size
+          state' = [ [ if x + 5 * y < div rate w
                             then ((state !! x) !! y) `xor` (input !! (x + 5 * y))
                             else (state !! x) !! y
-                        | y <- [0..4]  ]
+                        | y <- [0..4] ]
                             | x <- [0..4] ]
 
 
@@ -110,7 +120,6 @@ absorbBlock state input = keccakF state'
 --    TODO handle longer outputs
 squeeze :: Int -> State -> BS.ByteString
 squeeze len = BS.pack . take len . stateToBytes
-    where comma = 44
 
 
 stateToBytes :: State -> [Word8]
