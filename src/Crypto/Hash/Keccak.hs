@@ -30,32 +30,68 @@ rotationConstants = [ [  0, 36,  3, 41, 18 ]
                     ]
 
 
-paddingKeccak :: BS.ByteString -> [Word8]
-paddingKeccak = multiratePadding 0x1
+paddingKeccak :: Int -> BS.ByteString -> [Word8]
+paddingKeccak bitRateBytes = multiratePadding bitRateBytes 0x1
 
 
-paddingSha3 :: BS.ByteString -> [Word8]
-paddingSha3 = multiratePadding 0x6
+paddingSha3 :: Int -> BS.ByteString -> [Word8]
+paddingSha3 bitRateBytes = multiratePadding bitRateBytes 0x6
 
 
-multiratePadding :: Word8 -> BS.ByteString -> [Word8]
-multiratePadding padByte input = BS.unpack . BS.append input $ if padlen == 1
+multiratePadding :: Int -> Word8 -> BS.ByteString -> [Word8]
+multiratePadding bitRateBytes padByte input = BS.unpack . BS.append input $ if padlen == 1
     then BS.pack [0x81]
     else BS.pack $ padByte : replicate (padlen - 2) 0x00 ++ [0x80]
-    where bitRateBytes = 136
-          -- TODO: modulo bitRateBytes?
+    where -- TODO: modulo bitRateBytes?
           usedBytes = BS.length input
           padlen = bitRateBytes - mod usedBytes bitRateBytes
 
--- TODO keccak512
--- TODO keccak384
+
+-- r (bitrate) = 576
+-- c (capacity) = 1024
+keccak512Rate :: Int
+keccak512Rate = 576
+
+keccak512 :: BS.ByteString -> BS.ByteString
+keccak512 = squeeze 64 . absorb keccak512Rate
+                       . toBlocks bitRateBytes
+                       . paddingKeccak bitRateBytes
+    where bitRateBytes = div keccak512Rate 8
+
+
+-- r (bitrate) = 832
+-- c (capacity) = 768
+keccak384Rate :: Int
+keccak384Rate = 832
+
+keccak384 :: BS.ByteString -> BS.ByteString
+keccak384 = squeeze 48 . absorb keccak384Rate
+                       . toBlocks bitRateBytes
+                       . paddingKeccak bitRateBytes
+    where bitRateBytes = div keccak384Rate 8
 
 -- r (bitrate) = 1088
 -- c (capacity) = 512
-keccak256 :: BS.ByteString -> BS.ByteString
-keccak256 = squeeze 32 . absorb . toBlocks 136 . paddingKeccak
+keccak256Rate :: Int
+keccak256Rate = 1088
 
--- TODO keccak224
+keccak256 :: BS.ByteString -> BS.ByteString
+keccak256 = squeeze 32 . absorb keccak256Rate
+                       . toBlocks bitRateBytes
+                       . paddingKeccak bitRateBytes
+    where bitRateBytes = div keccak256Rate 8
+
+-- r (bitrate) = 1152
+-- c (capacity) = 448
+keccak224Rate :: Int
+keccak224Rate = 1152
+
+keccak224 :: BS.ByteString -> BS.ByteString
+keccak224 = squeeze 28 . absorb keccak224Rate
+                       . toBlocks bitRateBytes
+                       . paddingKeccak bitRateBytes
+    where bitRateBytes = div keccak224Rate 8
+
 
 -- Sized inputs to this?
 toBlocks :: Int -> [Word8] -> [[Word64]]
@@ -73,18 +109,16 @@ toBlocks sizeInBytes input = let (a, b) = splitAt sizeInBytes input
 --   for each block Pi in P
 --     S[x,y] = S[x,y] xor Pi[x+5*y],          for (x,y) such that x+5*y < r/w
 --     S = Keccak-f[r+c](S)
---     TODO support `input` larger than single block
-absorb :: [[Word64]] -> State
-absorb = foldl absorbBlock emptyState
+absorb :: Int -> [[Word64]] -> State
+absorb rate = foldl (absorbBlock rate) emptyState
 
-absorbBlock :: State -> [Word64] -> State
-absorbBlock state input = keccakF state'
-    where r = 1088
-          w = 64
-          state' = [ [ if x + 5 * y < div r w
+absorbBlock :: Int -> State -> [Word64] -> State
+absorbBlock rate state input = keccakF state'
+    where w = 64 -- lane size
+          state' = [ [ if x + 5 * y < div rate w
                             then ((state !! x) !! y) `xor` (input !! (x + 5 * y))
                             else (state !! x) !! y
-                        | y <- [0..4]  ]
+                        | y <- [0..4] ]
                             | x <- [0..4] ]
 
 
@@ -96,7 +130,6 @@ absorbBlock state input = keccakF state'
 --    TODO handle longer outputs
 squeeze :: Int -> State -> BS.ByteString
 squeeze len = BS.pack . take len . stateToBytes
-    where comma = 44
 
 
 stateToBytes :: State -> [Word8]
