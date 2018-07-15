@@ -36,6 +36,7 @@ tests = [ testGroup "padding & blocking"
             ]
         , testGroup "KAT"
             [ testCase "ShortMsgKAT_256.txt" shortMsgKAT_256
+            , testCase "LongMsgKAT_256.txt" longMsgKAT_256
             ]
         ]
 
@@ -78,3 +79,12 @@ shortMsgKAT_256 = do katsE <- parseFromFile parseTestFile testFile
                 then assertEqual "Bad digest" (keccak256 $ BS.take l m) d
                 else assertEqual "Non-byte lenght msg" True True
           testFile = "test/KAT_MCT/ShortMsgKAT_256.txt"
+
+longMsgKAT_256 :: Assertion
+longMsgKAT_256 = do katsE <- parseFromFile parseTestFile testFile
+                    kats <- either (assertFailure . show) pure katsE
+                    mapM_ runKat kats
+    where runKat (KAT l m d) = if l `mod` 8 == 0
+                then assertEqual "Bad digest" (keccak256 $ BS.take l m) d
+                else assertEqual "Non-byte lenght msg" True True
+          testFile = "test/KAT_MCT/LongMsgKAT_256.txt"

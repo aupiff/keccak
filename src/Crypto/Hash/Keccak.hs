@@ -47,15 +47,29 @@ multiratePadding padByte input = BS.unpack . BS.append input $ if padlen == 1
           usedBytes = BS.length input
           padlen = bitRateBytes - mod usedBytes bitRateBytes
 
--- TODO keccak512
--- TODO keccak384
+
+-- r (bitrate) = 576
+-- c (capacity) = 1024
+keccak512 :: BS.ByteString -> BS.ByteString
+keccak512 = squeeze 32 . absorb . toBlocks 136 . paddingKeccak
+
+
+-- r (bitrate) = 832
+-- c (capacity) = 768
+keccak384 :: BS.ByteString -> BS.ByteString
+keccak384 = squeeze 32 . absorb . toBlocks 136 . paddingKeccak
+
 
 -- r (bitrate) = 1088
 -- c (capacity) = 512
 keccak256 :: BS.ByteString -> BS.ByteString
 keccak256 = squeeze 32 . absorb . toBlocks 136 . paddingKeccak
 
--- TODO keccak224
+-- r (bitrate) = 1152
+-- c (capacity) = 448
+keccak224 :: BS.ByteString -> BS.ByteString
+keccak224 = squeeze 32 . absorb . toBlocks 136 . paddingKeccak
+
 
 -- Sized inputs to this?
 toBlocks :: Int -> [Word8] -> [[Word64]]
