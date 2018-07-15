@@ -1,4 +1,21 @@
-module Crypto.Hash.Keccak where
+module Crypto.Hash.Keccak
+    ( -- * Standard keccak hash functions
+      keccak224
+    , keccak256
+    , keccak384
+    , keccak512
+      -- * Standard sha3 hash functions
+    , sha3_512
+    , sha3_384
+    , sha3_256
+    , sha3_224
+      -- * Building blocks of a keccak sponge hash function
+    , keccakHash
+    , paddingKeccak
+    , absorb
+    , toBlocks
+    , squeeze
+    ) where
 
 import           Data.Bits
 import qualified Data.ByteString            as BS
@@ -46,51 +63,51 @@ multiratePadding bitRateBytes padByte input = BS.unpack . BS.append input $ if p
           usedBytes = BS.length input
           padlen = bitRateBytes - mod usedBytes bitRateBytes
 
+keccakHash :: Int -> BS.ByteString -> BS.ByteString
+keccakHash rate = squeeze outputBytes . absorb rate
+                                      . toBlocks bitrateBytes
+                                      . paddingKeccak bitrateBytes
+    where bitrateBytes = div rate 8
+          outputBytes = div (1600 - rate) 16
 
--- r (bitrate) = 576
--- c (capacity) = 1024
-keccak512Rate :: Int
-keccak512Rate = 576
+sha3Hash :: Int -> BS.ByteString -> BS.ByteString
+sha3Hash rate = squeeze outputBytes . absorb rate
+                                      . toBlocks bitrateBytes
+                                      . paddingSha3 bitrateBytes
+    where bitrateBytes = div rate 8
+          outputBytes = div (1600 - rate) 16
+
 
 keccak512 :: BS.ByteString -> BS.ByteString
-keccak512 = squeeze 64 . absorb keccak512Rate
-                       . toBlocks bitRateBytes
-                       . paddingKeccak bitRateBytes
-    where bitRateBytes = div keccak512Rate 8
+keccak512 = keccakHash 576
 
-
--- r (bitrate) = 832
--- c (capacity) = 768
-keccak384Rate :: Int
-keccak384Rate = 832
 
 keccak384 :: BS.ByteString -> BS.ByteString
-keccak384 = squeeze 48 . absorb keccak384Rate
-                       . toBlocks bitRateBytes
-                       . paddingKeccak bitRateBytes
-    where bitRateBytes = div keccak384Rate 8
+keccak384 =  keccakHash 832
 
--- r (bitrate) = 1088
--- c (capacity) = 512
-keccak256Rate :: Int
-keccak256Rate = 1088
 
 keccak256 :: BS.ByteString -> BS.ByteString
-keccak256 = squeeze 32 . absorb keccak256Rate
-                       . toBlocks bitRateBytes
-                       . paddingKeccak bitRateBytes
-    where bitRateBytes = div keccak256Rate 8
+keccak256 = keccakHash 1088
 
--- r (bitrate) = 1152
--- c (capacity) = 448
-keccak224Rate :: Int
-keccak224Rate = 1152
 
 keccak224 :: BS.ByteString -> BS.ByteString
-keccak224 = squeeze 28 . absorb keccak224Rate
-                       . toBlocks bitRateBytes
-                       . paddingKeccak bitRateBytes
-    where bitRateBytes = div keccak224Rate 8
+keccak224 = keccakHash 1152
+
+
+sha3_512 :: BS.ByteString -> BS.ByteString
+sha3_512 = sha3Hash 576
+
+
+sha3_384 :: BS.ByteString -> BS.ByteString
+sha3_384 = sha3Hash 832
+
+
+sha3_256 :: BS.ByteString -> BS.ByteString
+sha3_256 = sha3Hash 1088
+
+
+sha3_224 :: BS.ByteString -> BS.ByteString
+sha3_224 = sha3Hash 1152
 
 
 -- Sized inputs to this?
