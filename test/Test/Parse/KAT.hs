@@ -14,22 +14,26 @@ import           Text.Parsec.Expr
 
 type TestFile = [KAT]
 
-data KAT = KAT { length  :: Int
-               , message :: BS.ByteString
-               , digest  :: BS.ByteString
+data KAT = KAT { byteLength :: Int
+               , message    :: BS.ByteString
+               , digest     :: BS.ByteString
                } deriving Show
 
 parseTestFile :: Parser TestFile
 parseTestFile = skipMany (commentLine <|> dataLine <|> blankLine) *> many1 parseKat
 
+
 commentLine :: Parser ()
 commentLine = void $ char '#' *> manyTill anyChar endOfLine
+
 
 dataLine :: Parser ()
 dataLine = void $ char '[' *> manyTill anyChar endOfLine
 
+
 blankLine :: Parser ()
 blankLine = void endOfLine
+
 
 parseKat :: Parser KAT
 parseKat = do len <- string "Len = " *> many1 digit <* endOfLine
@@ -40,8 +44,10 @@ parseKat = do len <- string "Len = " *> many1 digit <* endOfLine
               pure $ KAT parsedLen (BS.take parsedLen $ bytesDecode msg)
                                    (bytesDecode digest)
 
+
 bytesDecode :: String -> BS.ByteString
 bytesDecode = fst . BS16.decode . T.encodeUtf8 . T.pack
+
 
 parseFromFile :: Parsec T.Text () a -> FilePath -> IO (Either ParseError a)
 parseFromFile p fname = do

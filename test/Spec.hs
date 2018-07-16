@@ -89,11 +89,11 @@ cryptoniteKeccak256_eq xs =
 knownAnswerTestAssertion :: FilePath -> (BS.ByteString -> BS.ByteString) -> Assertion
 knownAnswerTestAssertion testFile hashFunction = do
     katsE <- parseFromFile parseTestFile testFile
-    kats <- either (assertFailure . show) pure katsE
-    mapM_ runKat kats
-    where runKat (KAT l m d) = if l `mod` 8 == 0
-                then assertEqual "Bad digest" (hashFunction $ BS.take l m) d
-                else assertEqual "Non-byte lenght msg" True True
+    kats <- either (assertFailure . show)
+                   (pure . filter (\kat -> byteLength kat `mod` 8 == 0)) katsE
+    mapM_ runKat $ zip [0..] kats
+    where runKat (index, KAT l m d) = assertEqual (show index ++ ": Bad digest.")
+                                                  (hashFunction $ BS.take l m) d
 
 shortMsgKAT_224 :: Assertion
 shortMsgKAT_224 = knownAnswerTestAssertion "test/KAT_MCT/ShortMsgKAT_224.txt" keccak224
@@ -132,7 +132,7 @@ longMsgKAT_SHA3_256 :: Assertion
 longMsgKAT_SHA3_256 = knownAnswerTestAssertion "test/KAT_MCT/SHA3_256LongMsg.rsp" sha3_256
 
 shortMsgKAT_SHA3_384 :: Assertion
-shortMsgKAT_SHA3_384 = knownAnswerTestAssertion "test/KAT_MCT/SHA3_382ShortMsg.rsp" sha3_384
+shortMsgKAT_SHA3_384 = knownAnswerTestAssertion "test/KAT_MCT/SHA3_384ShortMsg.rsp" sha3_384
 
 longMsgKAT_SHA3_384 :: Assertion
 longMsgKAT_SHA3_384 = knownAnswerTestAssertion "test/KAT_MCT/SHA3_384LongMsg.rsp" sha3_384

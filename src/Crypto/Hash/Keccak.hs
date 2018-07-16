@@ -53,18 +53,19 @@ rotationConstants = [ [  0, 36,  3, 41, 18 ]
 -- Keccak and SHA3 hash functions
 ----------------------------------------------------
 
+hashFunction :: (Int -> BS.ByteString -> [Word8]) -> Int -> BS.ByteString -> BS.ByteString
+hashFunction paddingFunction rate = squeeze outputBytes . absorb rate
+                                                        . paddingFunction (div rate 8)
+    where outputBytes = div (1600 - rate) 16
+
+
 keccakHash :: Int -> BS.ByteString -> BS.ByteString
-keccakHash rate = squeeze outputBytes . absorb rate
-                                      . paddingKeccak bitrateBytes
-    where bitrateBytes = div rate 8
-          outputBytes = div (1600 - rate) 16
+keccakHash = hashFunction paddingKeccak
 
 
 sha3Hash :: Int -> BS.ByteString -> BS.ByteString
-sha3Hash rate = squeeze outputBytes . absorb rate
-                                    . paddingSha3 bitrateBytes
-    where bitrateBytes = div rate 8
-          outputBytes = div (1600 - rate) 16
+sha3Hash = hashFunction paddingSha3
+
 
 -- | Keccak (512 bits) cryptographic hash algorithm
 keccak512 :: BS.ByteString -> BS.ByteString
@@ -145,7 +146,8 @@ toBlocks sizeInBytes input = let (a, b) = splitAt sizeInBytes input
           toLane :: [Word8] -> Word64
           toLane octets = foldl1 xor $ zipWith (\offset octet -> shiftL (fromIntegral octet) (offset * 8)) [0..7] octets
 
--- | Takes as input the bitrate @rate@ and a string P with |P| a multiple of @rate@. Returns the value of the state obtained after absorbing P.
+-- | Takes as input the bitrate @rate@ and a string P with |P| a multiple of
+-- @rate@. Returns the value of the state obtained after absorbing P.
 absorb :: Int -> [Word8] -> State
 absorb rate = foldl (absorbBlock rate) emptyState . toBlocks (div rate 8)
 
