@@ -4,15 +4,15 @@ module Crypto.Hash.Keccak
     , keccak256
     , keccak384
     , keccak512
-      -- * Standard sha3 hash functions
+      -- * Standard SHA3 hash functions
     , sha3_512
     , sha3_384
     , sha3_256
     , sha3_224
-      -- * Building blocks of a keccak sponge hash function
+      -- * Building blocks of a Keccak hash function
     , keccakHash
     , paddingKeccak
-    , paddingsha3
+    , paddingSha3
     , absorb
     , squeeze
     ) where
@@ -122,13 +122,13 @@ multiratePadding bitrateBytes padByte input = BS.unpack . BS.append input $ if p
 -- 0 followed by a single bit 1 such that the length of the result is
 -- a multiple of the bitrate.
 paddingKeccak :: Int -> BS.ByteString -> [Word8]
-paddingKeccak bitrateBytes = multiratePadding bitrateBytes 0x1
+paddingKeccak bitrateBytes = multiratePadding bitrateBytes 0x01
 
 
 -- | Appends to a message M padding of the form (M || 0x06 || 0x00... || 0x80)
 -- such that the length of the result is a multiple of the bitrate.
 paddingSha3 :: Int -> BS.ByteString -> [Word8]
-paddingSha3 bitrateBytes = multiratePadding bitrateBytes 0x6
+paddingSha3 bitrateBytes = multiratePadding bitrateBytes 0x06
 
 ----------------------------------------------------
 -- Sponge function primitives

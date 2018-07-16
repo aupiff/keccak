@@ -20,10 +20,13 @@ data KAT = KAT { length  :: Int
                } deriving Show
 
 parseTestFile :: Parser TestFile
-parseTestFile = skipMany (commentLine <|> blankLine) *> many1 parseKat
+parseTestFile = skipMany (commentLine <|> dataLine <|> blankLine) *> many1 parseKat
 
 commentLine :: Parser ()
 commentLine = void $ char '#' *> manyTill anyChar endOfLine
+
+dataLine :: Parser ()
+dataLine = void $ char '[' *> manyTill anyChar endOfLine
 
 blankLine :: Parser ()
 blankLine = void endOfLine
