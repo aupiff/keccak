@@ -28,8 +28,8 @@ test-suite keccak-test
   other-modules:       Test.Cryptonite
                        Test.Parse.KAT
   build-depends:       base
-                     , bytestring
                      , base16-bytestring
+                     , bytestring
                      , cryptonite
                      , keccak
                      , HUnit
@@ -57,6 +57,14 @@ benchmark self
                       , gauge
                       , keccak
                       , memory
+
+executable collision
+  main-is:         lowCapacityCollision.hs
+  hs-source-dirs:  examples
+  build-depends:       base
+                     , base16-bytestring
+                     , bytestring
+                     , keccak
 
 source-repository head
   type:     git
