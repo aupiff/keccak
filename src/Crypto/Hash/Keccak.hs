@@ -11,6 +11,7 @@ module Crypto.Hash.Keccak
     , sha3_224
       -- * Building blocks of a Keccak hash function
     , keccakHash
+    , sha3Hash
     , paddingKeccak
     , paddingSha3
     , absorb
@@ -58,11 +59,13 @@ hashFunction paddingFunction rate = squeeze outputBytes . absorb rate
                                                         . paddingFunction (div rate 8)
     where outputBytes = div (1600 - rate) 16
 
-
+-- | Given a bitrate @r@, returns a standard Keccak hash with state width @w@ = 1600 and
+-- capacity = 1600 - @r@
 keccakHash :: Int -> BS.ByteString -> BS.ByteString
 keccakHash = hashFunction paddingKeccak
 
-
+-- | Given a bitrate @r@, returns a standard SHA3 hash with state width @w@ = 1600 and
+-- capacity = 1600 - @r@
 sha3Hash :: Int -> BS.ByteString -> BS.ByteString
 sha3Hash = hashFunction paddingSha3
 
@@ -114,7 +117,7 @@ sha3_224 = sha3Hash 1152
 -- in a block plus one.
 multiratePadding :: Int -> Word8 -> BS.ByteString -> [Word8]
 multiratePadding bitrateBytes padByte input = BS.unpack . BS.append input $ if padlen == 1
-    then BS.pack [0x81]
+    then BS.pack [0x80 .|. padByte]
     else BS.pack $ padByte : replicate (padlen - 2) 0x00 ++ [0x80]
     where padlen = bitrateBytes - mod (BS.length input) bitrateBytes
 
@@ -151,6 +154,7 @@ toBlocks sizeInBytes input = let (a, b) = splitAt sizeInBytes input
 absorb :: Int -> [Word8] -> State
 absorb rate = foldl (absorbBlock rate) emptyState . toBlocks (div rate 8)
 
+
 absorbBlock :: Int -> State -> [Word64] -> State
 absorbBlock rate state input = keccakF state'
     where w = 64 -- lane size
@@ -161,9 +165,11 @@ absorbBlock rate state input = keccakF state'
                             | x <- [0..4] ]
 
 
--- | Squeezing phase
+-- | Iteratively returns the outer part of the state as output blocks, interleaved
+-- with applications of the function @keccakF@. The number of iterations is
+-- determined by the requested number of bits @l@.
 squeeze :: Int -> State -> BS.ByteString
-squeeze len = BS.pack . take len . stateToBytes
+squeeze l = BS.pack . take l . stateToBytes
 
 
 stateToBytes :: State -> [Word8]
@@ -180,6 +186,7 @@ laneToBytes word = fmap (\x -> fromIntegral (shiftR word (x * 8) .&. 0xFF)) [0..
 keccakF :: State -> State
 keccakF state = foldl (\s r -> iota r . chi . rhoPi $ theta s) state [0 .. (rounds - 1)]
     where rounds = 24
+
 
 -- | θ step
 theta :: State -> State
