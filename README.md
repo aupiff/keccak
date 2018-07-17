@@ -8,6 +8,8 @@ A pure haskell implementation of the keccak family of hashes.
 ## Example usage
 
 ```haskell
+ghci> import Data.ByteString.Base16 as BS16
+
 ghci> :t keccak256
 keccak256 :: BS.ByteString -> BS.ByteString
 
@@ -32,9 +34,8 @@ stack bench
 
 ## References
 
+[Cryptographic Sponge Functions](https://keccak.team/files/CSF-0.1.pdf)
+
 [Official Keccak Reference](https://keccak.team/files/Keccak-reference-3.0.pdf)
 
 [Specification summary](https://keccak.team/keccak_specs_summary.html)
-
-[SHA-3 and The Hash Function Keccak (textbook
-chapter)](https://pdfs.semanticscholar.org/8450/06456ff132a406444fa85aa7b5636266a8d0.pdf)
