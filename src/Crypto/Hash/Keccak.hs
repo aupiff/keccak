@@ -21,40 +21,39 @@ module Crypto.Hash.Keccak
 import           Data.Bits
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy       as LBS
+import           Data.Vector.Unboxed        ((!), (//))
+import qualified Data.Vector.Unboxed        as V
 import           Data.Word
 
-type State = [[Word64]]
-
-emptyState :: State
-emptyState = replicate 5 (replicate 5 0)
+emptyState :: V.Vector Word64
+emptyState = V.replicate 25 0
 
 ----------------------------------------------------
 -- Constants used in KeccakF[1600] permutation
 ----------------------------------------------------
 
-roundConstants :: [Word64]
-roundConstants = [ 0x0000000000000001, 0x0000000000008082, 0x800000000000808A
-                 , 0x8000000080008000, 0x000000000000808B, 0x0000000080000001
-                 , 0x8000000080008081, 0x8000000000008009, 0x000000000000008A
-                 , 0x0000000000000088, 0x0000000080008009, 0x000000008000000A
-                 , 0x000000008000808B, 0x800000000000008B, 0x8000000000008089
-                 , 0x8000000000008003, 0x8000000000008002, 0x8000000000000080
-                 , 0x000000000000800A, 0x800000008000000A, 0x8000000080008081
-                 , 0x8000000000008080, 0x0000000080000001, 0x8000000080008008 ]
+roundConstants :: V.Vector Word64
+roundConstants = V.fromList [ 0x0000000000000001, 0x0000000000008082, 0x800000000000808A
+                            , 0x8000000080008000, 0x000000000000808B, 0x0000000080000001
+                            , 0x8000000080008081, 0x8000000000008009, 0x000000000000008A
+                            , 0x0000000000000088, 0x0000000080008009, 0x000000008000000A
+                            , 0x000000008000808B, 0x800000000000008B, 0x8000000000008089
+                            , 0x8000000000008003, 0x8000000000008002, 0x8000000000000080
+                            , 0x000000000000800A, 0x800000008000000A, 0x8000000080008081
+                            , 0x8000000000008080, 0x0000000080000001, 0x8000000080008008 ]
 
-rotationConstants :: [[Int]]
-rotationConstants = [ [  0, 36,  3, 41, 18 ]
-                    , [  1, 44, 10, 45,  2 ]
-                    , [ 62,  6, 43, 15, 61 ]
-                    , [ 28, 55, 25, 21, 56 ]
-                    , [ 27, 20, 39,  8, 14 ]
-                    ]
+rotationConstants :: V.Vector Int
+rotationConstants = V.fromList [  0, 36,  3, 41, 18
+                               ,  1, 44, 10, 45,  2
+                               , 62,  6, 43, 15, 61
+                               , 28, 55, 25, 21, 56
+                               , 27, 20, 39,  8, 14 ]
 
 ----------------------------------------------------
 -- Keccak and SHA3 hash functions
 ----------------------------------------------------
 
-hashFunction :: (Int -> BS.ByteString -> [Word8]) -> Int -> BS.ByteString -> BS.ByteString
+hashFunction :: (Int -> BS.ByteString -> V.Vector Word8) -> Int -> BS.ByteString -> BS.ByteString
 hashFunction paddingFunction rate = squeeze outputBytes . absorb rate
                                                         . paddingFunction (div rate 8)
     where outputBytes = div (1600 - rate) 16
@@ -115,103 +114,107 @@ sha3_224 = sha3Hash 1152
 
 -- | Multi-rate padding appends at least 2 bits and at most the number of bits
 -- in a block plus one.
-multiratePadding :: Int -> Word8 -> BS.ByteString -> [Word8]
-multiratePadding bitrateBytes padByte input = BS.unpack . BS.append input $ if padlen == 1
-    then BS.pack [0x80 .|. padByte]
-    else BS.pack $ padByte : replicate (padlen - 2) 0x00 ++ [0x80]
+multiratePadding :: Int -> Word8 -> BS.ByteString -> V.Vector Word8
+multiratePadding bitrateBytes padByte input = V.fromList . (++) (BS.unpack input) $ if padlen == 1
+    then [0x80 .|. padByte]
+    else padByte : replicate (padlen - 2) 0x00 ++ [0x80]
     where padlen = bitrateBytes - mod (BS.length input) bitrateBytes
 
 
 -- | Appends a single bit 1 followed by the minimum number of bits
 -- 0 followed by a single bit 1 such that the length of the result is
 -- a multiple of the bitrate.
-paddingKeccak :: Int -> BS.ByteString -> [Word8]
+paddingKeccak :: Int -> BS.ByteString -> V.Vector Word8
 paddingKeccak bitrateBytes = multiratePadding bitrateBytes 0x01
 
 
 -- | Appends to a message M padding of the form (M || 0x06 || 0x00... || 0x80)
 -- such that the length of the result is a multiple of the bitrate.
-paddingSha3 :: Int -> BS.ByteString -> [Word8]
+paddingSha3 :: Int -> BS.ByteString -> V.Vector Word8
 paddingSha3 bitrateBytes = multiratePadding bitrateBytes 0x06
 
 ----------------------------------------------------
 -- Sponge function primitives
 ----------------------------------------------------
 
-toBlocks :: Int -> [Word8] -> [[Word64]]
-toBlocks _ [] = []
-toBlocks sizeInBytes input = let (a, b) = splitAt sizeInBytes input
-                             in toLanes a : toBlocks sizeInBytes b
-    where toLanes :: [Word8] -> [Word64]
-          toLanes [] = []
-          toLanes octets = let (a, b) = splitAt 8 octets
-                           in toLane a : toLanes b
-          toLane :: [Word8] -> Word64
-          toLane octets = foldl1 xor $ zipWith (\offset octet -> shiftL (fromIntegral octet) (offset * 8)) [0..7] octets
+toBlocks :: Int -> V.Vector Word8 -> [V.Vector Word64]
+toBlocks sizeInBytes input
+    | V.null input = []
+    | otherwise     = let (a, b) = V.splitAt sizeInBytes input
+                      in toLanes a : toBlocks sizeInBytes b
+    where toLanes :: V.Vector Word8 -> V.Vector Word64
+          toLanes octets
+            | V.null octets = V.empty
+            | otherwise     = let (a, b) = V.splitAt 8 octets
+                              in V.cons (toLane a) (toLanes b)
+          toLane :: V.Vector Word8 -> Word64
+          toLane = V.ifoldl' (\acc offset octet -> acc `xor` shiftL (fromIntegral octet) (offset * 8)) 0
 
 -- | Takes as input the bitrate @rate@ and a string P with |P| a multiple of
 -- @rate@. Returns the value of the state obtained after absorbing P.
-absorb :: Int -> [Word8] -> State
+absorb :: Int -> V.Vector Word8 -> V.Vector Word64
 absorb rate = foldl (absorbBlock rate) emptyState . toBlocks (div rate 8)
 
 
-absorbBlock :: Int -> State -> [Word64] -> State
+absorbBlock :: Int -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64
 absorbBlock rate state input = keccakF state'
     where w = 64 -- lane size
-          state' = [ [ if x + 5 * y < div rate w
-                            then ((state !! x) !! y) `xor` (input !! (x + 5 * y))
-                            else (state !! x) !! y
-                        | y <- [0..4] ]
-                            | x <- [0..4] ]
-
+          state' = V.map (\z -> if div z 5 + 5 * mod z 5 < threshold then (state ! z) `xor` (input ! (div z 5 + 5 * mod z 5))
+                                                          else state ! z)
+                          (V.enumFromN 0 25)
+          threshold = div rate w
 
 -- | Iteratively returns the outer part of the state as output blocks, interleaved
 -- with applications of the function @keccakF@. The number of iterations is
 -- determined by the requested number of bits @l@.
-squeeze :: Int -> State -> BS.ByteString
-squeeze l = BS.pack . take l . stateToBytes
+squeeze :: Int -> V.Vector Word64 -> BS.ByteString
+squeeze l = BS.pack . V.toList . V.take l . stateToBytes
 
 
-stateToBytes :: State -> [Word8]
-stateToBytes state = concat [ laneToBytes (state !! x !!  y) | y <- [0..4] , x <- [0..4] ]
+stateToBytes :: V.Vector Word64 -> V.Vector Word8
+stateToBytes state = V.concatMap (\z -> laneToBytes $ state ! (div z 5 + mod z 5 * 5)) (V.enumFromN 0 25)
 
 
-laneToBytes :: Word64 -> [Word8]
-laneToBytes word = fmap (\x -> fromIntegral (shiftR word (x * 8) .&. 0xFF)) [0..7]
+laneToBytes :: Word64 -> V.Vector Word8
+laneToBytes word = V.map (\x -> fromIntegral (shiftR word (x * 8) .&. 0xFF)) (V.enumFromN 0 8)
 
 ----------------------------------------------------
 -- KeccakF permutation & constituent primatives
 ----------------------------------------------------
 
-keccakF :: State -> State
-keccakF state = foldl (\s r -> iota r . chi . rhoPi $ theta s) state [0 .. (rounds - 1)]
+keccakF :: V.Vector Word64 -> V.Vector Word64
+keccakF state = V.foldl' (\s r -> iota r . chi . rhoPi $ theta s) state (V.enumFromN 0 rounds)
     where rounds = 24
 
 
 -- | θ step
-theta :: State -> State
-theta state = [ [ ((state !! x) !! y) `xor` (d !! x)
-                    | y <- [0..4] ]
-                        | x <- [0..4] ]
-    where c = [ foldl1 xor [ (state !! x) !! y
-                    | y <- [0..4] ]
-                        | x <- [0..4] ]
-          d = [ c !! ((x - 1) `mod` 5) `xor` rotateL (c !! ((x + 1) `mod` 5)) 1 | x <- [0..4] ]
+theta :: V.Vector Word64 -> V.Vector Word64
+theta state = V.map (\z -> xor (d ! div z 5) (state ! z)) $ V.enumFromN 0 25
+    where c = V.fromList [ state ! 0  `xor` state ! 1  `xor` state ! 2  `xor` state ! 3  `xor` state ! 4
+                         , state ! 5  `xor` state ! 6  `xor` state ! 7  `xor` state ! 8  `xor` state ! 9
+                         , state ! 10 `xor` state ! 11 `xor` state ! 12 `xor` state ! 13 `xor` state ! 14
+                         , state ! 15 `xor` state ! 16 `xor` state ! 17 `xor` state ! 18 `xor` state ! 19
+                         , state ! 20 `xor` state ! 21 `xor` state ! 22 `xor` state ! 23 `xor` state ! 24
+                         ]
+          d = V.map (\x -> c ! ((x - 1) `mod` 5) `xor` rotateL (c ! ((x + 1) `mod` 5)) 1)
+                    (V.enumFromN 0 5)
 
 
 -- | ρ and π steps
-rhoPi :: State -> [[Word64]]
-rhoPi state = fmap (fmap rotFunc) [ [ ((x + 3 * y) `mod` 5, x) | y <- [0..4] ] | x <- [0..4] ]
-    where rotFunc (x, y) = rotateL ((state !! x) !! y) ((rotationConstants !! x) !! y)
+-- can be done using backpermute only & update
+rhoPi :: V.Vector Word64 -> V.Vector Word64
+rhoPi state = V.map (\z -> rotFunc ((div z 5 + 3 * rem z 5) `mod` 5, div z 5)) (V.enumFromN 0 25)
+    where rotFunc (x, y) = rotateL (state ! (x * 5 + y)) (rotationConstants ! (x * 5 +  y))
 
 
 -- | χ step
-chi :: [[Word64]] -> State
-chi b = [ [ ((b !! x) !! y) `xor` (complement ((b !! ((x + 1) `mod` 5)) !! y) .&. ((b !! ((x + 2) `mod` 5)) !! y))
-                    | y <- [0..4] ]
-                        | x <- [0..4] ]
-
+-- The only non-linear component of keccakF
+chi :: V.Vector Word64 -> V.Vector Word64
+chi b = V.map func (V.enumFromN 0 25)
+    where func z = let x = div z 5
+                       y = rem z 5
+                   in (b ! z) `xor` (complement (b ! (mod (x + 1) 5 * 5 + y)) .&. (b ! (((x + 2) `mod` 5) * 5 + y)))
 
 -- | ι step
-iota :: Int -> State -> State
-iota round ((first : rest) : restRows) = (xor (roundConstants !! round) first : rest) : restRows
+iota :: Int -> V.Vector Word64 -> V.Vector Word64
+iota round state = state // [(0, xor (roundConstants ! round) (V.head state))]
