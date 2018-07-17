@@ -7,6 +7,9 @@ A pure haskell implementation of the keccak family of hashes.
 
 ## Example usage
 
+In the example usage below, I encode `ByteString`s in base16 so that they
+can be read as standard hex strings.
+
 ```haskell
 ghci> import Data.ByteString.Base16 as BS16
 
@@ -26,11 +29,40 @@ ghci> BS16.encode $ keccak256 ""
 stack test
 ```
 
+NIST uses the [Secure Hash Algorithm Validation System
+(SHAVS)](https://csrc.nist.gov/CSRC/media//Projects/Cryptographic-Algorithm-Validation-Program/documents/shs/SHAVS.pdf)
+to validate the correctness of hash implementations. For all four variants of
+SHA3 and Keccak, the `keccak` library's implementations successfully
+[pass](https://github.com/aupiff/keccak/blob/master/test/Spec.hs) the standard
+KATs (Known Answer Tests).
+
 ## Benchmarks
 
 ```
 stack bench
 ```
+
+`cryptonite`'s C-based implementation of Keccack256 is currently 68x faster
+than my naive, unoptimized Haskell.
+
+```
+benchmarked keccak
+time                 438.7 μs   (429.6 μs .. 450.0 μs)
+                     0.995 R²   (0.992 R² .. 0.997 R²)
+mean                 440.7 μs   (435.8 μs .. 448.0 μs)
+std dev              21.38 μs   (16.90 μs .. 28.45 μs)
+variance introduced by outliers: 28% (moderately inflated)
+
+benchmarked cryptonite-keccak
+time                 6.319 μs   (6.187 μs .. 6.435 μs)
+                     0.997 R²   (0.995 R² .. 0.998 R²)
+mean                 6.446 μs   (6.354 μs .. 6.632 μs)
+std dev              426.5 ns   (258.4 ns .. 737.4 ns)
+variance introduced by outliers: 43% (moderately inflated)
+```
+
+Eventually, I hope the library will have very few dependencies (only base
+& bytestring, currently) and excellent performance.
 
 ## References
 

@@ -7,7 +7,7 @@ homepage:            https://github.com/aupiff/keccak#readme
 license:             MIT
 license-file:        LICENSE
 author:              Roy Blankman
-maintainer:          riblankman@gmail.com
+maintainer:          blankman@boustro.com
 copyright:           2018 Roy Blankman
 category:            Crypto
 build-type:          Simple
