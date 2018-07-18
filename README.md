@@ -42,27 +42,27 @@ KATs (Known Answer Tests).
 stack bench
 ```
 
-`cryptonite`'s C-based implementation of Keccack256 is currently 68x faster
-than my naive, unoptimized Haskell.
+`cryptonite`'s C-based implementation of Keccack256 is currently 31x faster
+than my Haskell.
 
 ```
 benchmarked keccak
-time                 438.7 μs   (429.6 μs .. 450.0 μs)
-                     0.995 R²   (0.992 R² .. 0.997 R²)
-mean                 440.7 μs   (435.8 μs .. 448.0 μs)
-std dev              21.38 μs   (16.90 μs .. 28.45 μs)
-variance introduced by outliers: 28% (moderately inflated)
+time                 192.9 μs   (189.3 μs .. 196.5 μs)
+                     0.997 R²   (0.994 R² .. 0.999 R²)
+mean                 196.2 μs   (194.2 μs .. 199.8 μs)
+std dev              8.622 μs   (5.653 μs .. 12.30 μs)
+variance introduced by outliers: 24% (moderately inflated)
 
 benchmarked cryptonite-keccak
-time                 6.319 μs   (6.187 μs .. 6.435 μs)
-                     0.997 R²   (0.995 R² .. 0.998 R²)
-mean                 6.446 μs   (6.354 μs .. 6.632 μs)
-std dev              426.5 ns   (258.4 ns .. 737.4 ns)
-variance introduced by outliers: 43% (moderately inflated)
+time                 6.105 μs   (6.038 μs .. 6.186 μs)
+                     0.999 R²   (0.998 R² .. 0.999 R²)
+mean                 6.302 μs   (6.236 μs .. 6.413 μs)
+std dev              293.5 ns   (196.1 ns .. 440.9 ns)
+variance introduced by outliers: 26% (moderately inflated)
 ```
 
-Eventually, I hope the library will have very few dependencies (only base
-& bytestring, currently) and excellent performance.
+Eventually, I hope the library will have very few dependencies (only base,
+vector & bytestring, currently) and excellent performance.
 
 ## References
 
