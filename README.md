@@ -5,6 +5,9 @@ CI](https://img.shields.io/travis/aupiff/keccak.svg?label=Travis%20CI)](https://
 
 A pure haskell implementation of the keccak family of hashes.
 
+Documentation available on
+[Hackage](http://hackage.haskell.org/package/keccak).
+
 ## Example usage
 
 In the example usage below, I encode `ByteString`s in base16 so that they

@@ -8,6 +8,7 @@ import qualified Data.ByteString    as BS
 
 import Gauge
 
+-- TODO short test & long test for multiple hashes
 stringsToHash :: [BS.ByteString]
 stringsToHash =  ["", "testing", "1234891237489127349817238497"]
 
