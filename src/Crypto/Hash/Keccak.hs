@@ -159,8 +159,9 @@ absorb rate = foldl (absorbBlock rate) emptyState . toBlocks (div rate 8)
 absorbBlock :: Int -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64
 absorbBlock rate state input = keccakF state'
     where w = 64 -- lane size
-          state' = V.map (\z -> if div z 5 + 5 * mod z 5 < threshold then (state ! z) `xor` (input ! (div z 5 + 5 * mod z 5))
-                                                          else state ! z)
+          state' = V.map (\z -> if div z 5 + 5 * mod z 5 < threshold
+                                    then (state ! z) `xor` (input ! (div z 5 + 5 * mod z 5))
+                                    else state ! z)
                           (V.enumFromN 0 25)
           threshold = div rate w
 
@@ -201,7 +202,7 @@ theta state = V.map (\z -> xor (d ! div z 5) (state ! z)) $ V.enumFromN 0 25
 
 
 -- | ρ and π steps
--- can be done using backpermute only & update
+-- can be done using backpermute & update
 rhoPi :: V.Vector Word64 -> V.Vector Word64
 rhoPi state = V.map (\z -> rotFunc ((div z 5 + 3 * rem z 5) `mod` 5, div z 5)) (V.enumFromN 0 25)
     where rotFunc (x, y) = rotateL (state ! (x * 5 + y)) (rotationConstants ! (x * 5 +  y))
@@ -213,7 +214,8 @@ chi :: V.Vector Word64 -> V.Vector Word64
 chi b = V.map func (V.enumFromN 0 25)
     where func z = let x = div z 5
                        y = rem z 5
-                   in (b ! z) `xor` (complement (b ! (mod (x + 1) 5 * 5 + y)) .&. (b ! (((x + 2) `mod` 5) * 5 + y)))
+                   in (b ! z) `xor`
+                      (complement (b ! (mod (x + 1) 5 * 5 + y)) .&. (b ! (((x + 2) `mod` 5) * 5 + y)))
 
 -- | ι step
 iota :: Int -> V.Vector Word64 -> V.Vector Word64
