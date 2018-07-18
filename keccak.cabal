@@ -1,5 +1,5 @@
 name:                keccak
-version:             0.1.2
+version:             0.1.3
 synopsis:            haskell keccak functions
 description:         pure haskell implementation of keccak hash functions for
                      use with ghc or ghcjs
