@@ -35,7 +35,8 @@ stack test
 NIST uses the [Secure Hash Algorithm Validation System
 (SHAVS)](https://csrc.nist.gov/CSRC/media//Projects/Cryptographic-Algorithm-Validation-Program/documents/shs/SHAVS.pdf)
 to validate the correctness of hash implementations. For all four variants of
-SHA3 and Keccak, the `keccak` library's implementations successfully
+SHA3 and Keccak and the two standard variants of SHAKE, the `keccak` library's
+implementations successfully
 [pass](https://github.com/aupiff/keccak/blob/master/test/Spec.hs) the standard
 KATs (Known Answer Tests).
 
@@ -45,23 +46,23 @@ KATs (Known Answer Tests).
 stack bench
 ```
 
-`cryptonite`'s C-based implementation of Keccack256 is currently 31x faster
+`cryptonite`'s C-based implementation of Keccack256 is currently 17.6 times faster
 than my Haskell.
 
 ```
 benchmarked keccak
-time                 192.9 μs   (189.3 μs .. 196.5 μs)
-                     0.997 R²   (0.994 R² .. 0.999 R²)
-mean                 196.2 μs   (194.2 μs .. 199.8 μs)
-std dev              8.622 μs   (5.653 μs .. 12.30 μs)
-variance introduced by outliers: 24% (moderately inflated)
+time                 117.1 μs   (115.3 μs .. 119.3 μs)
+                     0.996 R²   (0.993 R² .. 0.998 R²)
+mean                 116.3 μs   (114.8 μs .. 118.6 μs)
+std dev              6.733 μs   (4.773 μs .. 9.938 μs)
+variance introduced by outliers: 36% (moderately inflated)
 
 benchmarked cryptonite-keccak
-time                 6.105 μs   (6.038 μs .. 6.186 μs)
-                     0.999 R²   (0.998 R² .. 0.999 R²)
-mean                 6.302 μs   (6.236 μs .. 6.413 μs)
-std dev              293.5 ns   (196.1 ns .. 440.9 ns)
-variance introduced by outliers: 26% (moderately inflated)
+time                 6.656 μs   (6.483 μs .. 6.878 μs)
+                     0.995 R²   (0.989 R² .. 0.998 R²)
+mean                 6.600 μs   (6.532 μs .. 6.720 μs)
+std dev              277.1 ns   (197.5 ns .. 413.3 ns)
+variance introduced by outliers: 22% (moderately inflated)
 ```
 
 Eventually, I hope the library will have very few dependencies (only base,

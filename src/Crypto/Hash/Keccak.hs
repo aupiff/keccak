@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+
 module Crypto.Hash.Keccak
     ( -- * Standard keccak hash functions
       keccak224
@@ -9,6 +11,9 @@ module Crypto.Hash.Keccak
     , sha3_384
     , sha3_256
     , sha3_224
+      -- * SHAKE extendable-output functions
+    , shake128
+    , shake256
       -- * Building blocks of a Keccak hash function
     , keccakHash
     , sha3Hash
@@ -19,10 +24,19 @@ module Crypto.Hash.Keccak
     ) where
 
 import           Data.Bits
-import qualified Data.ByteString            as BS
-import           Data.Vector.Unboxed        ((!), (//))
-import qualified Data.Vector.Unboxed        as V
+import qualified Data.ByteString             as BS
+import qualified Data.ByteString.Builder     as BS
+import qualified Data.ByteString.Lazy        as LBS
+import           Data.Foldable
+import           Data.Monoid
+import           Data.Vector.Unboxed         ((!))
+import qualified Data.Vector.Unboxed         as V
+import qualified Data.Vector.Unboxed.Mutable as MV
 import           Data.Word
+import           Prelude                     hiding (pi)
+
+rounds :: Int
+rounds = 24
 
 numLanes :: Int
 numLanes = 25
@@ -54,13 +68,21 @@ rotationConstants = V.fromList [  0, 36,  3, 41, 18
                                , 28, 55, 25, 21, 56
                                , 27, 20, 39,  8, 14 ]
 
+-- TODO explain how these are generated
+piConstants :: V.Vector Int
+piConstants = V.fromList [ 0, 15, 5, 20, 10
+                         , 6, 21, 11, 1, 16
+                         , 12, 2, 17, 7, 22
+                         , 18, 8, 23, 13, 3
+                         , 24, 14, 4, 19, 9 ]
+
 ----------------------------------------------------
 -- Keccak and SHA3 hash functions
 ----------------------------------------------------
 
 hashFunction :: (Int -> BS.ByteString -> V.Vector Word8) -> Int -> BS.ByteString -> BS.ByteString
-hashFunction paddingFunction rate = squeeze outputBytes . absorb rate
-                                                        . paddingFunction (div rate 8)
+hashFunction paddingFunction rate = squeeze rate outputBytes . absorb rate
+                                                             . paddingFunction (div rate 8)
     where outputBytes = div (1600 - rate) 16
 
 -- | Given a bitrate @r@, returns a standard Keccak hash with state width @w@ = 1600 and
@@ -114,17 +136,43 @@ sha3_224 :: BS.ByteString -> BS.ByteString
 sha3_224 = sha3Hash 1152
 
 ----------------------------------------------------
+-- SHAKE Extendable-Output Functions
+----------------------------------------------------
+
+shakeFunction :: (Int -> BS.ByteString -> V.Vector Word8) -> Int
+              -> Int -> BS.ByteString -> BS.ByteString
+shakeFunction paddingFunction rate outputBytes =
+        squeeze rate outputBytes . absorb rate
+                                 . paddingFunction (div rate 8)
+
+
+-- | SHAKE128 (128 bit security level) cryptographic extendable-output function
+shake128 :: Int -> BS.ByteString -> BS.ByteString
+shake128 outputBits = shakeFunction paddingShake 1344 (div outputBits 8)
+
+
+-- | SHAKE256 (256 bit security level) cryptographic extendable-output function
+shake256 :: Int -> BS.ByteString -> BS.ByteString
+shake256 outputBits = shakeFunction paddingShake 1088 (div outputBits 8)
+
+
+----------------------------------------------------
 -- Padding functions
 ----------------------------------------------------
 
 -- | Multi-rate padding appends at least 2 bits and at most the number of bits
 -- in a block plus one.
 multiratePadding :: Int -> Word8 -> BS.ByteString -> V.Vector Word8
-multiratePadding bitrateBytes padByte input = V.fromList . (++) (BS.unpack input) $ if padlen == 1
-    then [0x80 .|. padByte]
-    else padByte : replicate (padlen - 2) 0x00 ++ [0x80]
-    where padlen = bitrateBytes - mod (BS.length input) bitrateBytes
-
+multiratePadding bitrateBytes padByte input = V.generate totalLength process
+    where msglen = BS.length input
+          padlen = bitrateBytes - mod (BS.length input) bitrateBytes
+          totalLength = padlen + msglen
+          process x
+            | x < msglen                            = BS.index input x
+            | x == (totalLength - 1) && padlen == 1 = 0x80 .|. padByte
+            | x == (totalLength - 1)                = 0x80
+            | x == msglen                           = padByte
+            | otherwise                             = 0x00
 
 -- | Appends a single bit 1 followed by the minimum number of bits
 -- 0 followed by a single bit 1 such that the length of the result is
@@ -138,6 +186,10 @@ paddingKeccak bitrateBytes = multiratePadding bitrateBytes 0x01
 paddingSha3 :: Int -> BS.ByteString -> V.Vector Word8
 paddingSha3 bitrateBytes = multiratePadding bitrateBytes 0x06
 
+
+paddingShake :: Int -> BS.ByteString -> V.Vector Word8
+paddingShake bitrateBytes = multiratePadding bitrateBytes 0x1F
+
 ----------------------------------------------------
 -- Sponge function primitives
 ----------------------------------------------------
@@ -147,8 +199,8 @@ toBlocks = V.unfoldr toLane
     where toLane :: V.Vector Word8 -> Maybe (Word64, V.Vector Word8)
           toLane input
             | V.null input = Nothing
-            | otherwise    = let (head, tail) = V.splitAt 8 input
-                             in Just (V.ifoldl' createWord64 0 head, tail)
+            | otherwise    = let (h, t) = V.splitAt 8 input
+                             in Just (V.ifoldl' createWord64 0 h, t)
           createWord64 acc offset octet = acc `xor` shiftL (fromIntegral octet) (offset * 8)
 
 
@@ -159,66 +211,62 @@ absorb rate = absorbBlock rate emptyState . toBlocks
 
 
 absorbBlock :: Int -> V.Vector Word64 -> V.Vector Word64 -> V.Vector Word64
-absorbBlock rate state input
+absorbBlock !rate !state !input
     | V.null input = state
     | otherwise    = absorbBlock rate (keccakF state') (V.drop (div rate 64) input)
     -- TODO this can be optimized with some sort of in-place manipulation
-    where state' = V.map (\z -> if div z 5 + 5 * mod z 5 < div rate laneWidth
-                                    then (state ! z) `xor` (input ! (div z 5 + 5 * mod z 5))
-                                    else state ! z)
-                         (V.enumFromN 0 numLanes)
+    where state' = V.imap (\z el -> if div z 5 + 5 * mod z 5 < threshold
+                                    then el `xor` (input ! (div z 5 + 5 * mod z 5))
+                                    else el) state
+          threshold = div rate laneWidth
+
 
 -- | Iteratively returns the outer part of the state as output blocks, interleaved
 -- with applications of the function @keccakF@. The number of iterations is
 -- determined by the requested number of bits @l@.
--- TODO make this support SHAKE
-squeeze :: Int -> V.Vector Word64 -> BS.ByteString
-squeeze l = BS.pack . V.toList . V.take l . stateToBytes
-
-
--- TODO this can probably be an unfold
-stateToBytes :: V.Vector Word64 -> V.Vector Word8
-stateToBytes state = V.concatMap (\z -> laneToBytes $ state ! (div z 5 + mod z 5 * 5)) (V.enumFromN 0 numLanes)
-
-
-laneToBytes :: Word64 -> V.Vector Word8
-laneToBytes = V.unfoldrN 8 (\x -> Just (fromIntegral $ x .&. 0xFF, shiftR x 8))
+squeeze :: Int -> Int -> V.Vector Word64 -> BS.ByteString
+squeeze !rate !l !state = BS.take l . LBS.toStrict . BS.toLazyByteString
+                                    . V.foldl' (\acc n -> acc <> BS.word64LE n) mempty
+                                    $ stateToBytes state
+    where stateToBytes :: V.Vector Word64 -> V.Vector Word64
+          lanesToExtract = ceiling $ fromIntegral l / fromIntegral (div laneWidth 8)
+          stateToBytes s = V.unfoldrN lanesToExtract extract (0, s)
+          extract (24, s) = Just (s ! 24, (0, keccakF s))
+          extract (x, s) = Just (s ! (div x 5 + mod x 5 * 5), (succ x, s))
 
 ----------------------------------------------------
 -- KeccakF permutation & constituent primatives
 ----------------------------------------------------
 
 keccakF :: V.Vector Word64 -> V.Vector Word64
-keccakF state = V.foldl' (\s r -> iota r . chi . rhoPi $ theta s) state (V.enumFromN 0 rounds)
-    where rounds = 24
+keccakF !state = snd $ foldl1 (.) (replicate rounds f) (0, state)
+    where f (!r, !s) = (succ r, iota r . chi . pi . rho $ theta s)
 
 
 theta :: V.Vector Word64 -> V.Vector Word64
-theta state = V.map (\z -> xor (d ! div z 5) (state ! z)) $ V.enumFromN 0 numLanes
-    where c = V.fromList [ state ! 0  `xor` state ! 1  `xor` state ! 2  `xor` state ! 3  `xor` state ! 4
-                         , state ! 5  `xor` state ! 6  `xor` state ! 7  `xor` state ! 8  `xor` state ! 9
-                         , state ! 10 `xor` state ! 11 `xor` state ! 12 `xor` state ! 13 `xor` state ! 14
-                         , state ! 15 `xor` state ! 16 `xor` state ! 17 `xor` state ! 18 `xor` state ! 19
-                         , state ! 20 `xor` state ! 21 `xor` state ! 22 `xor` state ! 23 `xor` state ! 24
-                         ]
-          d = V.map (\x -> c ! ((x - 1) `mod` 5) `xor` rotateL (c ! ((x + 1) `mod` 5)) 1)
-                    (V.enumFromN 0 5)
+theta !state = V.imap (\z -> xor (d ! div z 5)) state
+    where c = V.generate 5 (\i -> V.foldl1' xor (V.slice (i * 5) 5 state))
+          d = V.generate 5 (\x -> c ! ((x - 1) `mod` 5) `xor` rotateL (c ! ((x + 1) `mod` 5)) 1)
+{-# INLINE theta #-}
 
 
--- can be done using backpermute & update
-rhoPi :: V.Vector Word64 -> V.Vector Word64
-rhoPi state = V.map (\z -> rotFunc ((div z 5 + 3 * rem z 5) `mod` 5, div z 5)) (V.enumFromN 0 numLanes)
-    where rotFunc (x, y) = rotateL (state ! (x * 5 + y)) (rotationConstants ! (x * 5 +  y))
+pi :: V.Vector Word64 -> V.Vector Word64
+pi !state = V.backpermute state piConstants
+{-# INLINE pi #-}
+
+
+rho :: V.Vector Word64 -> V.Vector Word64
+rho !state = V.zipWith (flip rotateL) rotationConstants state
+{-# INLINE rho #-}
 
 
 -- The only non-linear component of keccakF
 chi :: V.Vector Word64 -> V.Vector Word64
-chi b = V.map func (V.enumFromN 0 numLanes)
-    where func z = let x = div z 5
-                       y = rem z 5
-                   in (b ! z) `xor`
-                      (complement (b ! (mod (x + 1) 5 * 5 + y)) .&. (b ! (((x + 2) `mod` 5) * 5 + y)))
+chi !b = V.imap subChi b
+    where subChi z el = el `xor` (complement (b ! mod (z + 5) 25) .&. (b ! mod (z + 10) 25))
+{-# INLINE chi #-}
 
 
 iota :: Int -> V.Vector Word64 -> V.Vector Word64
-iota round state = state // [(0, xor (roundConstants ! round) (V.head state))]
+iota !roundNumber !state = V.modify (\v -> MV.write v 0 $ xor (roundConstants ! roundNumber) (V.head state)) state
+{-# INLINE iota #-}
