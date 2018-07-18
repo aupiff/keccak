@@ -14,6 +14,10 @@ import           Text.Parsec.Expr
 
 type TestFile = [KAT]
 
+data ShakeTestFile = ShakeTestFile { outputLength :: Int
+                                   , kats         :: [KAT]
+                                   }
+
 data KAT = KAT { byteLength :: Int
                , message    :: BS.ByteString
                , digest     :: BS.ByteString
@@ -23,8 +27,21 @@ parseTestFile :: Parser TestFile
 parseTestFile = skipMany (commentLine <|> dataLine <|> blankLine) *> many1 parseKat
 
 
+parseShakeTestFile :: Parser ShakeTestFile
+parseShakeTestFile = ShakeTestFile <$>
+    (skipMany (commentLine <|> blankLine)
+        *> outputLengthField
+        <* skipMany (commentLine <|> blankLine))
+    <*> many1 parseShakeKat
+
+
 commentLine :: Parser ()
 commentLine = void $ char '#' *> manyTill anyChar endOfLine
+
+
+outputLengthField :: Parser Int
+outputLengthField = read <$> (string "[Outputlen = " *> many1 digit
+                                                     <* manyTill anyChar endOfLine)
 
 
 dataLine :: Parser ()
@@ -43,6 +60,16 @@ parseKat = do len <- string "Len = " *> many1 digit <* endOfLine
               let parsedLen = read len
               pure $ KAT parsedLen (BS.take parsedLen $ bytesDecode msg)
                                    (bytesDecode digest)
+
+
+parseShakeKat :: Parser KAT
+parseShakeKat = do len <- string "Len = " *> many1 digit <* endOfLine
+                   msg <- string "Msg = " *> many1 hexDigit <* endOfLine
+                   digest <- string "Output = " *> many1 hexDigit <* endOfLine
+                   skipMany (commentLine <|> blankLine)
+                   let parsedLen = read len
+                   pure $ KAT parsedLen (BS.take parsedLen $ bytesDecode msg)
+                                        (bytesDecode digest)
 
 
 bytesDecode :: String -> BS.ByteString

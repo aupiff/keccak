@@ -18,24 +18,31 @@ main = defaultMain tests
 
 tests :: [Test]
 tests = [ testGroup "Keccak KAT"
-            [ testCase "ShortMsgKAT_224.txt" shortMsgKAT_224
-            , testCase "LongMsgKAT_224.txt" longMsgKAT_224
-            , testCase "ShortMsgKAT_256.txt" shortMsgKAT_256
-            , testCase "LongMsgKAT_256.txt" longMsgKAT_256
-            , testCase "ShortMsgKAT_384.txt" shortMsgKAT_384
-            , testCase "LongMsgKAT_384.txt" longMsgKAT_384
-            , testCase "ShortMsgKAT_512.txt" shortMsgKAT_512
-            , testCase "LongMsgKAT_512.txt" longMsgKAT_512
+            [ testCase "Keccak-224 ShortMsg KAT" shortMsgKAT_224
+            , testCase "Keccak-224 LongMsg  KAT" longMsgKAT_224
+            , testCase "Keccak-256 ShortMsg KAT" shortMsgKAT_256
+            , testCase "Keccak-256 LongMsg  KAT" longMsgKAT_256
+            , testCase "Keccak-256 ShortMsg KAT" shortMsgKAT_384
+            , testCase "Keccak-384 LongMsg  KAT" longMsgKAT_384
+            , testCase "Keccak-512 ShortMsg KAT" shortMsgKAT_512
+            , testCase "Keccak-512 LongMsg  KAT" longMsgKAT_512
             ]
         , testGroup "SHA3 KAT"
-            [ testCase "SHA3_224ShortMsg.rsp" shortMsgKAT_SHA3_224
-            , testCase "SHA3_244LongMsg.rsp" longMsgKAT_SHA3_224
-            , testCase "SHA3_256ShortMsg.rsp" shortMsgKAT_SHA3_256
-            , testCase "SHA3_256LongMsg.rsp" longMsgKAT_SHA3_256
-            , testCase "SHA3_384ShortMsg.rsp" shortMsgKAT_SHA3_384
-            , testCase "SHA3_384LongMsg.rsp" longMsgKAT_SHA3_384
-            , testCase "SHA3_512ShortMsg.rsp" shortMsgKAT_SHA3_512
-            , testCase "SHA3_512LongMsg.rsp" longMsgKAT_SHA3_512
+            [ testCase "SHA3-224 ShortMsg KAT" shortMsgKAT_SHA3_224
+            , testCase "SHA3-244 LongMsg  KAT" longMsgKAT_SHA3_224
+            , testCase "SHA3-256 ShortMsg KAT" shortMsgKAT_SHA3_256
+            , testCase "SHA3-256 LongMsg  KAT" longMsgKAT_SHA3_256
+            , testCase "SHA3-384 ShortMsg KAT" shortMsgKAT_SHA3_384
+            , testCase "SHA3-384 LongMsg  KAT" longMsgKAT_SHA3_384
+            , testCase "SHA3-512 ShortMsg KAT" shortMsgKAT_SHA3_512
+            , testCase "SHA3-512 LongMsg  KAT" longMsgKAT_SHA3_512
+            ]
+        , testGroup "SHAKE"
+            [ testCase "SHAKE-128 ShortMsg KAT" shortMsgKAT_SHAKE_128
+            , testCase "SHAKE-128 LongMsg  KAT" longMsgKAT_SHAKE_128
+            , testCase "SHAKE-256 ShortMsg KAT" shortMsgKAT_SHAKE_256
+            , testCase "SHAKE-256 LongMsg  KAT" longMsgKAT_SHAKE_256
+            -- TODO add support for variable-length output tests
             ]
         ]
 
@@ -48,6 +55,16 @@ knownAnswerTestAssertion testFile hashFunction = do
     mapM_ runKat $ zip [0..] kats
     where runKat (index, KAT l m d) = assertEqual (show index ++ ": Bad digest.")
                                                   (hashFunction $ BS.take l m) d
+
+
+knownAnswerTestShakeAssertion :: FilePath -> (Int -> BS.ByteString -> BS.ByteString) -> Assertion
+knownAnswerTestShakeAssertion testFile hashFunction = do
+    katsE <- parseFromFile parseShakeTestFile testFile
+    (len, kats) <- either (assertFailure . show)
+                          (\(ShakeTestFile len kats) -> pure (len, filter (\kat -> byteLength kat `mod` 8 == 0) kats)) katsE
+    mapM_ (runKat len) $ zip [0..] kats
+    where runKat len (index, KAT l m d) = assertEqual (show index ++ ": Bad digest.")
+                                                      (hashFunction len $ BS.take l m) d
 
 
 shortMsgKAT_224 :: Assertion
@@ -97,3 +114,15 @@ shortMsgKAT_SHA3_512 = knownAnswerTestAssertion "test/KAT_MCT/SHA3_512ShortMsg.r
 
 longMsgKAT_SHA3_512 :: Assertion
 longMsgKAT_SHA3_512 = knownAnswerTestAssertion "test/KAT_MCT/SHA3_512LongMsg.rsp" sha3_512
+
+shortMsgKAT_SHAKE_128 :: Assertion
+shortMsgKAT_SHAKE_128 = knownAnswerTestShakeAssertion "test/KAT_MCT/SHAKE128ShortMsg.rsp" shake128
+
+longMsgKAT_SHAKE_128 :: Assertion
+longMsgKAT_SHAKE_128 = knownAnswerTestShakeAssertion "test/KAT_MCT/SHAKE128LongMsg.rsp" shake128
+
+shortMsgKAT_SHAKE_256 :: Assertion
+shortMsgKAT_SHAKE_256 = knownAnswerTestShakeAssertion "test/KAT_MCT/SHAKE256ShortMsg.rsp" shake256
+
+longMsgKAT_SHAKE_256 :: Assertion
+longMsgKAT_SHAKE_256 = knownAnswerTestShakeAssertion "test/KAT_MCT/SHAKE256LongMsg.rsp" shake256
