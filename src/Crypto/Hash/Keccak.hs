@@ -163,25 +163,26 @@ absorbBlock rate state input
     | V.null input = state
     | otherwise    = absorbBlock rate (keccakF state') (V.drop (div rate 64) input)
     -- TODO this can be optimized with some sort of in-place manipulation
-    where state' = V.map (\z -> if div z 5 + 5 * mod z 5 < threshold
+    where state' = V.map (\z -> if div z 5 + 5 * mod z 5 < div rate laneWidth
                                     then (state ! z) `xor` (input ! (div z 5 + 5 * mod z 5))
                                     else state ! z)
                          (V.enumFromN 0 numLanes)
-          threshold = div rate laneWidth
 
 -- | Iteratively returns the outer part of the state as output blocks, interleaved
 -- with applications of the function @keccakF@. The number of iterations is
 -- determined by the requested number of bits @l@.
+-- TODO make this support SHAKE
 squeeze :: Int -> V.Vector Word64 -> BS.ByteString
 squeeze l = BS.pack . V.toList . V.take l . stateToBytes
 
 
+-- TODO this can probably be an unfold
 stateToBytes :: V.Vector Word64 -> V.Vector Word8
 stateToBytes state = V.concatMap (\z -> laneToBytes $ state ! (div z 5 + mod z 5 * 5)) (V.enumFromN 0 numLanes)
 
 
 laneToBytes :: Word64 -> V.Vector Word8
-laneToBytes word = V.map (\x -> fromIntegral (shiftR word (x * 8) .&. 0xFF)) (V.enumFromN 0 8)
+laneToBytes = V.unfoldrN 8 (\x -> Just (fromIntegral $ x .&. 0xFF, shiftR x 8))
 
 ----------------------------------------------------
 -- KeccakF permutation & constituent primatives
