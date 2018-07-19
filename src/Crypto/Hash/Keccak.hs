@@ -244,7 +244,7 @@ keccakF !state = snd $ foldl1 (.) (replicate rounds f) (0, state)
 
 
 theta :: V.Vector Word64 -> V.Vector Word64
-theta !state = V.imap (\z -> xor (d ! div z 5)) state
+theta !state = V.concatMap (\(i, e) -> V.map (xor e) (V.slice (i * 5) 5 state)) $ V.indexed d
     where c = V.generate 5 (\i -> V.foldl1' xor (V.slice (i * 5) 5 state))
           d = V.generate 5 (\i -> c ! ((i - 1) `mod` 5) `xor` rotateL (c ! ((i + 1) `mod` 5)) 1)
 {-# INLINE theta #-}
