@@ -246,18 +246,18 @@ keccakF !state = snd $ foldl1 (.) (replicate rounds f) (0, state)
 theta :: V.Vector Word64 -> V.Vector Word64
 theta !state = V.imap (\z -> xor (d ! div z 5)) state
     where c = V.generate 5 (\i -> V.foldl1' xor (V.slice (i * 5) 5 state))
-          d = V.generate 5 (\x -> c ! ((x - 1) `mod` 5) `xor` rotateL (c ! ((x + 1) `mod` 5)) 1)
+          d = V.generate 5 (\i -> c ! ((i - 1) `mod` 5) `xor` rotateL (c ! ((i + 1) `mod` 5)) 1)
 {-# INLINE theta #-}
-
-
-pi :: V.Vector Word64 -> V.Vector Word64
-pi !state = V.backpermute state piConstants
-{-# INLINE pi #-}
 
 
 rho :: V.Vector Word64 -> V.Vector Word64
 rho !state = V.zipWith (flip rotateL) rotationConstants state
 {-# INLINE rho #-}
+
+
+pi :: V.Vector Word64 -> V.Vector Word64
+pi !state = V.backpermute state piConstants
+{-# INLINE pi #-}
 
 
 -- The only non-linear component of keccakF
