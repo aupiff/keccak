@@ -228,11 +228,13 @@ squeeze :: Int -> Int -> V.Vector Word64 -> BS.ByteString
 squeeze !rate !l !state = BS.take l . LBS.toStrict . BS.toLazyByteString
                                     . V.foldl' (\acc n -> acc <> BS.word64LE n) mempty
                                     $ stateToBytes state
-    where stateToBytes :: V.Vector Word64 -> V.Vector Word64
-          lanesToExtract = ceiling $ fromIntegral l / fromIntegral (div laneWidth 8)
+    where lanesToExtract = ceiling $ fromIntegral l / fromIntegral (div laneWidth 8)
+          stateToBytes :: V.Vector Word64 -> V.Vector Word64
           stateToBytes s = V.unfoldrN lanesToExtract extract (0, s)
-          extract (24, s) = Just (s ! 24, (0, keccakF s))
-          extract (x, s) = Just (s ! (div x 5 + mod x 5 * 5), (succ x, s))
+          threshold = div rate laneWidth
+          extract (x, s)
+            | x < threshold = Just (s ! (div x 5 + mod x 5 * 5), (succ x, s))
+            | otherwise     = extract (0, keccakF s)
 
 ----------------------------------------------------
 -- KeccakF permutation & constituent primatives
