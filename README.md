@@ -75,3 +75,5 @@ vector & bytestring, currently) and excellent performance.
 [Official Keccak Reference](https://keccak.team/files/Keccak-reference-3.0.pdf)
 
 [Specification summary](https://keccak.team/keccak_specs_summary.html)
+
+[SHA-3 Derived Functions](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-185.pdf)
